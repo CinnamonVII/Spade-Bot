@@ -27,6 +27,18 @@ module.exports = {
         )
         .addSubcommand(sub =>
             sub.setName('mylistings').setDescription('View your active listings')
+        )
+        .addSubcommand(sub =>
+            sub.setName('sell')
+                .setDescription('List your stocks or items for sale on the market')
+                .addStringOption(opt => opt.setName('type').setDescription('What to sell').setRequired(true)
+                    .addChoices(
+                        { name: 'Stock', value: 'stock' },
+                        { name: 'Item', value: 'item' }
+                    ))
+                .addStringOption(opt => opt.setName('asset').setDescription('Stock ticker (e.g., NVDA) or Item ID').setRequired(true))
+                .addIntegerOption(opt => opt.setName('quantity').setDescription('Amount to sell').setRequired(true).setMinValue(1))
+                .addIntegerOption(opt => opt.setName('price').setDescription('Total price for all units').setRequired(true).setMinValue(1))
         ),
 
     async execute(interaction) {
@@ -233,6 +245,82 @@ Seller: ${sellerName}
             }
 
             return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+
+        if (sub === 'sell') {
+            const listingType = interaction.options.getString('type');
+            const assetIdentifier = interaction.options.getString('asset');
+            const quantity = interaction.options.getInteger('quantity');
+            const totalPrice = interaction.options.getInteger('price');
+
+            if (listingType === 'stock') {
+                // Find stock by ticker
+                const stockRes = await query('SELECT * FROM stocks WHERE UPPER(ticker) = UPPER($1)', [assetIdentifier]);
+                if (stockRes.rows.length === 0) {
+                    return interaction.reply({ content: `❌ Stock \`${assetIdentifier}\` not found. Use \`/stocks list\` to see available tickers.`, ephemeral: true });
+                }
+                const stock = stockRes.rows[0];
+
+                // Check user owns enough shares
+                const holdingRes = await query('SELECT shares FROM user_stocks WHERE user_id = $1 AND stock_id = $2', [userId, stock.id]);
+                const ownedShares = holdingRes.rows[0]?.shares || 0;
+
+                if (ownedShares < quantity) {
+                    return interaction.reply({ content: `❌ You only own **${ownedShares}** shares of ${stock.ticker}. Can't list ${quantity}.`, ephemeral: true });
+                }
+
+                await withTransaction(async (client) => {
+                    // Deduct shares from user
+                    await client.query('UPDATE user_stocks SET shares = shares - $1 WHERE user_id = $2 AND stock_id = $3', [quantity, userId, stock.id]);
+
+                    // Create listing
+                    await client.query(`
+                        INSERT INTO market_listings (seller_id, listing_type, stock_id, item_id, quantity, price, status)
+                        VALUES ($1, 'stock', $2, NULL, $3, $4, 'active')
+                    `, [userId, stock.id, quantity, totalPrice]);
+                });
+
+                const pricePerShare = Math.floor(totalPrice / quantity);
+                return interaction.reply({ content: `✅ Listed **${quantity} shares of ${stock.ticker}** for **$${totalPrice.toLocaleString()}** ($${pricePerShare}/share) on the market!` });
+
+            } else if (listingType === 'item') {
+                // Find item by ID
+                const itemId = parseInt(assetIdentifier);
+                if (isNaN(itemId)) {
+                    return interaction.reply({ content: '❌ For items, please provide the numeric Item ID.', ephemeral: true });
+                }
+
+                const itemRes = await query('SELECT * FROM shop_items WHERE id = $1', [itemId]);
+                if (itemRes.rows.length === 0) {
+                    return interaction.reply({ content: `❌ Item with ID \`${itemId}\` not found.`, ephemeral: true });
+                }
+                const item = itemRes.rows[0];
+
+                // Check user owns enough
+                const inventoryRes = await query('SELECT amount FROM user_items WHERE user_id = $1 AND item_id = $2', [userId, itemId]);
+                const ownedAmount = inventoryRes.rows[0]?.amount || 0;
+
+                if (ownedAmount < quantity) {
+                    return interaction.reply({ content: `❌ You only own **${ownedAmount}x ${item.name}**. Can't list ${quantity}.`, ephemeral: true });
+                }
+
+                await withTransaction(async (client) => {
+                    // Deduct items from user
+                    if (ownedAmount === quantity) {
+                        await client.query('DELETE FROM user_items WHERE user_id = $1 AND item_id = $2', [userId, itemId]);
+                    } else {
+                        await client.query('UPDATE user_items SET amount = amount - $1 WHERE user_id = $2 AND item_id = $3', [quantity, userId, itemId]);
+                    }
+
+                    // Create listing
+                    await client.query(`
+                        INSERT INTO market_listings (seller_id, listing_type, stock_id, item_id, quantity, price, status)
+                        VALUES ($1, 'item', NULL, $2, $3, $4, 'active')
+                    `, [userId, itemId, quantity, totalPrice]);
+                });
+
+                return interaction.reply({ content: `✅ Listed **${quantity}x ${item.name}** for **$${totalPrice.toLocaleString()}** on the market!` });
+            }
         }
     }
 };
