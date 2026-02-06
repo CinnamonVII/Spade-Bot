@@ -6,4 +6,8 @@ node_modules
 .DS_Store
 coverage/
 :memory:
-ROADMAP.md
+
+# Ignore all markdown files by default
+*.md
+# But allow the main README
+!README.md
