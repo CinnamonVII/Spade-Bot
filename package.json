@@ -28,6 +28,7 @@
         "gif-encoder-2": "^1.0.5",
         "minecraft-data": "^3.76.0",
         "minecraft-protocol": "^1.26.5",
+        "mineflayer": "^4.25.0",
         "pg": "^8.18.0",
         "puppeteer": "^24.37.1",
         "puppeteer-core": "^24.37.1"
