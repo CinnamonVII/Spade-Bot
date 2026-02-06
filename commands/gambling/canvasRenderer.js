@@ -208,6 +208,11 @@ module.exports = {
         const canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
         const ctx = canvas.getContext('2d');
 
+        // PIXEL ART MODE: Disable smoothing
+        ctx.imageSmoothingEnabled = false;
+        ctx.patternQuality = 'fast';
+        ctx.textDrawingMode = 'glyph'; // Sharper text if supported, otherwise standard
+
         // Preload horse emojis
         const horseEmojis = new Set(['🏁']);
         frames.forEach(frame => {
@@ -217,81 +222,113 @@ module.exports = {
 
         encoder.start();
         encoder.setRepeat(0);
-        encoder.setDelay(100); // ~10 FPS
+        encoder.setDelay(100);
         encoder.setQuality(10);
 
-        // Assets and Colors
-        const SKY_GRADIENT_START = '#87CEEB'; // Sky Blue
-        const SKY_GRADIENT_END = '#E0F7FA';   // Light Cyan
-        const GRASS_COLOR = '#4CAF50';
-        const DIRT_COLOR = '#795548';
-        const TRACK_LANE_COLOR = '#8D6E63';
-        const FENCE_COLOR = '#FFFFFF';
+        // Retro/Pixel Palette
+        const COLORS = {
+            SKY_TOP: '#3b86ff',     // Bright arcade blue
+            SKY_BOTTOM: '#87cefa',
+            GRASS: '#38b764',       // Retro green
+            DIRT: '#a05b35',        // Reddish brown
+            DIRT_DARK: '#7a4427',
+            FENCE: '#ffffff',
+            FENCE_SHADOW: '#a9a9a9',
+            TEXT: '#ffffff',
+            TEXT_SHADOW: '#000000',
+            UI_BG: '#292831'
+        };
 
-        // Draw helper functions
-        const drawBackground = (ctx, scrollOffset) => {
+        const drawPixelatedLine = (x1, y1, x2, y2, color, thickness) => {
+            ctx.fillStyle = color;
+            // Draw a rectangle for the line to ensure sharpness
+            if (x1 === x2) { // Vertical
+                ctx.fillRect(x1 - thickness / 2, Math.min(y1, y2), thickness, Math.abs(y2 - y1));
+            } else if (y1 === y2) { // Horizontal
+                ctx.fillRect(Math.min(x1, x2), y1 - thickness / 2, Math.abs(x2 - x1), thickness);
+            } else {
+                // Fallback for diagonal (rarely used here)
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = thickness;
+                ctx.stroke();
+            }
+        };
+
+        const drawFinishLine = (x) => {
+            const trackTop = CANVAS_HEIGHT / 2 + 30;
+            const trackHeight = 250;
+            const trackBottom = trackTop + trackHeight;
+
+            const postWidth = 10;
+            // Far post
+            ctx.fillStyle = '#555';
+            ctx.fillRect(x + 5, trackTop - 60, postWidth, trackHeight + 60);
+
+            // Checkered Banner
+            const bannerY = trackTop - 60;
+            const bannerHeight = 40;
+            const checkSize = 20;
+
+            ctx.fillStyle = '#000'; // Banner border
+            ctx.fillRect(x - 5, bannerY - 5, 30, bannerHeight + 10);
+
+            for (let r = 0; r < 2; r++) { // 2 rows
+                for (let c = 0; c < 1; c++) { // 1 column vertical strip
+                    const cy = bannerY + (r * checkSize);
+                    ctx.fillStyle = ((r + c) % 2 === 0) ? '#fff' : '#000';
+                    ctx.fillRect(x, cy, 20, checkSize);
+                }
+            }
+
+            // Finish Line on Ground (Checkered Strip)
+            const stripWidth = 20;
+            const numChecks = 10;
+            const checkHeight = trackHeight / numChecks;
+
+            for (let i = 0; i < numChecks; i++) {
+                const cy = trackTop + (i * checkHeight);
+                // Row 1
+                ctx.fillStyle = (i % 2 === 0) ? '#fff' : '#000';
+                ctx.fillRect(x, cy, stripWidth / 2, checkHeight);
+                // Row 2
+                ctx.fillStyle = (i % 2 !== 0) ? '#fff' : '#000';
+                ctx.fillRect(x + stripWidth / 2, cy, stripWidth / 2, checkHeight);
+            }
+        };
+
+        const drawBackground = () => {
             // Sky
             const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT / 2);
-            gradient.addColorStop(0, SKY_GRADIENT_START);
-            gradient.addColorStop(1, SKY_GRADIENT_END);
+            gradient.addColorStop(0, COLORS.SKY_TOP);
+            gradient.addColorStop(1, COLORS.SKY_BOTTOM);
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-            // Distant Mountains (Parallax - moves slower)
-            ctx.fillStyle = '#9FA8DA'; // Muted purple/blue
-            ctx.beginPath();
-            ctx.moveTo(0, CANVAS_HEIGHT / 2);
-            for (let i = 0; i <= CANVAS_WIDTH; i += 50) {
-                const mountainHeight = 100 + Math.sin((i + scrollOffset * 0.5) * 0.01) * 30;
-                ctx.lineTo(i, CANVAS_HEIGHT / 2 - mountainHeight);
-            }
-            ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT / 2);
-            ctx.fill();
-        };
+            // Pixelated Mountains
+            ctx.fillStyle = '#654053'; // Dark retro purple
+            const mountainBase = CANVAS_HEIGHT / 2;
 
-        const drawTrack = (ctx, scrollOffset) => {
-            // Ground/Grass area
-            ctx.fillStyle = GRASS_COLOR;
+            // Draw simple blocky mountains
+            const mountains = [
+                { x: 50, w: 200, h: 100 },
+                { x: 300, w: 150, h: 80 },
+                { x: 600, w: 250, h: 120 }
+            ];
+
+            mountains.forEach(m => {
+                ctx.beginPath();
+                ctx.moveTo(m.x, mountainBase);
+                ctx.lineTo(m.x + m.w / 2, mountainBase - m.h);
+                ctx.lineTo(m.x + m.w, mountainBase);
+                ctx.fill();
+            });
+
+            // Ground
+            ctx.fillStyle = COLORS.GRASS;
             ctx.fillRect(0, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT / 2);
-
-            // Dirt Track
-            const trackY = CANVAS_HEIGHT / 2 + 30;
-            const trackHeight = 250;
-            ctx.fillStyle = DIRT_COLOR;
-            ctx.fillRect(0, trackY, CANVAS_WIDTH, trackHeight);
-
-            // Lanes
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 2;
-            const laneHeight = trackHeight / 5;
-
-            ctx.beginPath();
-            for (let i = 1; i < 5; i++) {
-                const y = trackY + (i * laneHeight);
-                ctx.moveTo(0, y);
-                ctx.lineTo(CANVAS_WIDTH, y);
-            }
-            ctx.stroke();
-
-            // Finish Line (if in view)
-            // We assume 100% progress corresponds to a fixed distance.
-            // In side-scrolling, we can say the "camera" follows the leader.
-            // But checking the logic, typical arcade racers often have static backgrounds or looping ones.
-            // Let's make a looping fence in the foreground.
-        };
-
-        const drawFence = (ctx, scrollOffset) => {
-            ctx.fillStyle = FENCE_COLOR;
-            const fenceY = CANVAS_HEIGHT / 2 + 20;
-            const postSpacing = 60;
-            const offset = scrollOffset % postSpacing;
-
-            for (let x = -offset; x < CANVAS_WIDTH; x += postSpacing) {
-                ctx.fillRect(x, fenceY, 10, 40); // Post
-                // Crossbars
-                ctx.fillRect(x, fenceY + 10, postSpacing, 5);
-                ctx.fillRect(x, fenceY + 30, postSpacing, 5);
-            }
         };
 
         let frameCounter = 0;
@@ -300,143 +337,158 @@ module.exports = {
             frameCounter++;
 
             if (frame.showPodium) {
-                // --- PODIUM VIEW (Reuse existing logic or simplify) ---
-                ctx.fillStyle = '#1a1a2e';
+                // --- PODIUM VIEW ---
+                ctx.fillStyle = COLORS.UI_BG;
                 ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
                 // Title
                 ctx.fillStyle = '#ffd700';
-                ctx.font = 'bold 36px sans-serif';
+                ctx.font = 'bold 36px "Courier New", monospace'; // Monospace for retro feel
                 ctx.textAlign = 'center';
-                ctx.fillText('🏆 RACE RESULTS 🏆', CANVAS_WIDTH / 2, 50);
+                ctx.fillText('🏆 RACE RESULTS 🏆', CANVAS_WIDTH / 2, 60);
 
-                // Podium logic
                 const podiumConfig = [
-                    { rank: 1, x: 300, height: 150, color: '#ffd700', label: '🥇 1st' },
-                    { rank: 2, x: 150, height: 120, color: '#c0c0c0', label: '🥈 2nd' },
-                    { rank: 3, x: 450, height: 90, color: '#cd7f32', label: '🥉 3rd' }
+                    { rank: 1, x: 300, height: 160, color: '#ffd700', label: '1ST' },
+                    { rank: 2, x: 140, height: 120, color: '#c0c0c0', label: '2ND' },
+                    { rank: 3, x: 460, height: 90, color: '#cd7f32', label: '3RD' }
                 ];
 
                 podiumConfig.forEach(({ rank, x, height, color, label }) => {
-                    const y = 300 - height;
+                    const y = 350 - height;
                     const horse = frame.horses[rank - 1];
                     if (!horse) return;
 
+                    // Block
                     ctx.fillStyle = color;
                     ctx.fillRect(x, y, 100, height);
-                    ctx.strokeStyle = '#000';
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(x, y, 100, height);
 
+                    // 3D side effect
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                    ctx.fillRect(x + 100, y + 10, 10, height - 10);
+                    ctx.fillRect(x + 10, y - 10, 100, 10);
+
+                    // Rank
                     ctx.fillStyle = '#000';
-                    ctx.font = 'bold 20px sans-serif';
-                    ctx.fillText(label, x + 50, y + height - 10);
+                    ctx.font = 'bold 24px "Courier New", monospace';
+                    ctx.fillText(label, x + 50, y + height - 20);
 
+                    // Horse
                     const horseImg = imageCache[horse.emoji];
-                    if (horseImg) ctx.drawImage(horseImg, x + 20, y - 70, 60, 60);
+                    if (horseImg) ctx.drawImage(horseImg, x + 20, y - 80, 60, 60);
 
+                    // Name
                     ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 14px sans-serif';
-                    ctx.fillText(`#${horse.num} ${horse.name}`, x + 50, y - 80);
+                    ctx.font = 'bold 16px "Courier New", monospace';
+                    ctx.fillText(`#${horse.num}`, x + 50, y - 90);
                 });
 
-                // Status message
-                ctx.fillStyle = '#ffd700';
-                ctx.font = 'bold 24px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(frame.status || '', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 20);
+                // Status
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px "Courier New", monospace';
+                ctx.fillText("Race Complete!", CANVAS_WIDTH / 2, CANVAS_HEIGHT - 30);
 
             } else {
-                // --- SIDE SCROLLING RACE VIEW ---
+                // --- RACE VIEW ---
+                drawBackground();
 
-                // Determine Camera / Scroll Position
-                // We want to keep the leader somewhat centered or towards the right.
-                // But a simple approach is: Background scrolls based on constant speed + leader speed.
-                // Let's just scroll constantly to simulate movement.
-                const scrollSpeed = 15;
+                const trackY = CANVAS_HEIGHT / 2 + 30;
+                const trackHeight = 250;
+
+                // Draw Dirt Track
+                ctx.fillStyle = COLORS.DIRT;
+                ctx.fillRect(0, trackY, CANVAS_WIDTH, trackHeight);
+
+                // Track borders
+                ctx.fillStyle = COLORS.DIRT_DARK;
+                ctx.fillRect(0, trackY - 5, CANVAS_WIDTH, 5); // Top border
+                ctx.fillRect(0, trackY + trackHeight, CANVAS_WIDTH, 5); // Bottom border
+
+                // Lanes (Horizontal lines)
+                const laneHeight = trackHeight / 5;
+                for (let i = 1; i < 5; i++) {
+                    const y = trackY + (i * laneHeight);
+                    drawPixelatedLine(0, y, CANVAS_WIDTH, y, 'rgba(0,0,0,0.2)', 2);
+                }
+
+                // Foreground Fence (Scrolling)
+                const scrollSpeed = 20;
                 const scrollOffset = frameCounter * scrollSpeed;
+                const fenceY = trackY - 20;
 
-                drawBackground(ctx, scrollOffset);
-                drawTrack(ctx, scrollOffset);
-                drawFence(ctx, scrollOffset);
+                // Draw Fence Posts
+                const postSpacing = 100;
+                const fenceOffset = scrollOffset % postSpacing;
 
-                // Draw Finish Line Logic
-                // If any horse is > 90%, start showing finish line coming from right?
-                // Or just draw distinct finish line based on max progress
+                ctx.fillStyle = COLORS.FENCE;
+                for (let x = -fenceOffset; x < CANVAS_WIDTH; x += postSpacing) {
+                    ctx.fillRect(x, fenceY, 8, 30);
+                }
+                // Fence Rays
+                ctx.fillRect(0, fenceY + 5, CANVAS_WIDTH, 4);
+                ctx.fillRect(0, fenceY + 20, CANVAS_WIDTH, 4);
 
-                // In this simplified view, let's map 0-100% progress to x=50 -> x=700 (screen space)
-                // This means horses actually move across the screen, rather than screen moving with them.
-                // It's easier to understand visually.
 
+                // --- HORSES & FINISH LINE ---
+                // Mapping: 0% -> 50px, 100% -> 650px (Finish line)
                 const startX = 50;
-                const endX = CANVAS_WIDTH - 100; // Finish line x
+                const endX = 650;
                 const raceWidth = endX - startX;
 
-                // Draw Finish Line
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(endX, CANVAS_HEIGHT / 2 + 30, 10, 250);
-                // Checkered banner
-                const bannerY = CANVAS_HEIGHT / 2 - 50;
-                ctx.fillStyle = '#000';
-                ctx.fillRect(endX - 5, bannerY, 20, 350); // Pole
-
-                // Draw Horses
-                const trackY = CANVAS_HEIGHT / 2 + 30;
-                const laneHeight = 250 / 5;
+                // Draw Finish Line if applicable
+                // It should be at x = 650
+                drawFinishLine(endX);
 
                 frame.horses.forEach((horse, idx) => {
                     const progress = horse.position / 100;
                     const x = startX + (progress * raceWidth);
-                    const y = trackY + (idx * laneHeight) + (laneHeight / 2) - 30; // Center in lane
+                    const y = trackY + (idx * laneHeight) // Top of lane
+                        + (laneHeight - 64) / 2;      // Center vertically in lane (64 is sprite size)
 
-                    // Bobbing animation
-                    const bobOffset = Math.sin((frameCounter + idx) * 0.8) * 5;
+                    // Bobbing
+                    const bob = (frameCounter + idx) % 4 < 2 ? 0 : 4; // Simple 2-frame bob
 
-                    // Shadow
-                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                    ctx.beginPath();
-                    ctx.ellipse(x + 30, y + 60, 20, 5, 0, 0, 2 * Math.PI);
-                    ctx.fill();
+                    // Shadow (Pixelated ellipse)
+                    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                    ctx.fillRect(x + 10, y + 54, 44, 6);
 
-                    // Dust particles (updates every few frames)
-                    if (frameCounter % 3 === 0 && horse.position < 100) {
-                        ctx.fillStyle = 'rgba(121, 85, 72, 0.4)'; // Dust color
-                        ctx.beginPath();
-                        ctx.arc(x, y + 50, 5 + Math.random() * 5, 0, 2 * Math.PI);
-                        ctx.fill();
-                    }
-
-                    // Horse Emoji
+                    // Horse
                     const horseImg = imageCache[horse.emoji];
                     if (horseImg) {
-                        ctx.drawImage(horseImg, x, y + bobOffset, 64, 64);
+                        ctx.drawImage(horseImg, x, y + bob, 64, 64);
                     }
 
-                    // Number Badge
-                    ctx.fillStyle = '#2196F3'; // Blue badge
-                    ctx.beginPath();
-                    ctx.arc(x + 10, y + bobOffset + 10, 10, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(horse.num, x + 10, y + bobOffset + 14);
+                    // Number Indicator (Pixel Badge)
+                    // Draw square badge instead of circle for pixel look
+                    ctx.fillStyle = '#ff0000'; // Red badge for visibility
+                    ctx.fillRect(x + 5, y + bob + 5, 20, 20);
+                    ctx.strokeStyle = '#fff';
+                    ctx.strokeRect(x + 5, y + bob + 5, 20, 20);
 
-                    // Name tag (floating above)
-                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                    ctx.fillRect(x, y + bobOffset - 20, ctx.measureText(horse.name).width + 10, 20);
                     ctx.fillStyle = '#fff';
-                    ctx.font = '12px sans-serif';
-                    ctx.fillText(horse.name, x + 5 + ctx.measureText(horse.name).width / 2, y + bobOffset - 6);
+                    ctx.font = 'bold 14px "Courier New", monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(horse.num, x + 15, y + bob + 19);
                 });
 
-                // Status Text
+                // UI Overlay
+                // Progress Bar Background
+                ctx.fillStyle = '#000';
+                ctx.fillRect(50, 40, CANVAS_WIDTH - 100, 20);
+
+                // Leader Progress
+                const leader = frame.horses.reduce((prev, curr) => (prev.position > curr.position) ? prev : curr);
+                const leaderPct = Math.min(leader.position, 100) / 100;
+
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(52, 42, (CANVAS_WIDTH - 104) * leaderPct, 16);
+
+                // Text status
                 ctx.fillStyle = '#fff';
                 ctx.strokeStyle = '#000';
-                ctx.lineWidth = 4;
-                ctx.font = 'bold 32px sans-serif';
-                ctx.strokeText(frame.status || '', CANVAS_WIDTH / 2, 80);
-                ctx.fillText(frame.status || '', CANVAS_WIDTH / 2, 80);
+                ctx.lineWidth = 3;
+                ctx.font = 'bold 24px "Courier New", monospace';
+                ctx.strokeText(frame.status || 'RACING...', CANVAS_WIDTH / 2, 30);
+                ctx.fillText(frame.status || 'RACING...', CANVAS_WIDTH / 2, 30);
             }
 
             encoder.addFrame(ctx);
