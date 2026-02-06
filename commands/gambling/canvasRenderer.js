@@ -217,13 +217,90 @@ module.exports = {
 
         encoder.start();
         encoder.setRepeat(0);
-        encoder.setDelay(100); // Slower: ~10 FPS for better visibility
+        encoder.setDelay(100); // ~10 FPS
         encoder.setQuality(10);
 
+        // Assets and Colors
+        const SKY_GRADIENT_START = '#87CEEB'; // Sky Blue
+        const SKY_GRADIENT_END = '#E0F7FA';   // Light Cyan
+        const GRASS_COLOR = '#4CAF50';
+        const DIRT_COLOR = '#795548';
+        const TRACK_LANE_COLOR = '#8D6E63';
+        const FENCE_COLOR = '#FFFFFF';
+
+        // Draw helper functions
+        const drawBackground = (ctx, scrollOffset) => {
+            // Sky
+            const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT / 2);
+            gradient.addColorStop(0, SKY_GRADIENT_START);
+            gradient.addColorStop(1, SKY_GRADIENT_END);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // Distant Mountains (Parallax - moves slower)
+            ctx.fillStyle = '#9FA8DA'; // Muted purple/blue
+            ctx.beginPath();
+            ctx.moveTo(0, CANVAS_HEIGHT / 2);
+            for (let i = 0; i <= CANVAS_WIDTH; i += 50) {
+                const mountainHeight = 100 + Math.sin((i + scrollOffset * 0.5) * 0.01) * 30;
+                ctx.lineTo(i, CANVAS_HEIGHT / 2 - mountainHeight);
+            }
+            ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT / 2);
+            ctx.fill();
+        };
+
+        const drawTrack = (ctx, scrollOffset) => {
+            // Ground/Grass area
+            ctx.fillStyle = GRASS_COLOR;
+            ctx.fillRect(0, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT / 2);
+
+            // Dirt Track
+            const trackY = CANVAS_HEIGHT / 2 + 30;
+            const trackHeight = 250;
+            ctx.fillStyle = DIRT_COLOR;
+            ctx.fillRect(0, trackY, CANVAS_WIDTH, trackHeight);
+
+            // Lanes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            const laneHeight = trackHeight / 5;
+
+            ctx.beginPath();
+            for (let i = 1; i < 5; i++) {
+                const y = trackY + (i * laneHeight);
+                ctx.moveTo(0, y);
+                ctx.lineTo(CANVAS_WIDTH, y);
+            }
+            ctx.stroke();
+
+            // Finish Line (if in view)
+            // We assume 100% progress corresponds to a fixed distance.
+            // In side-scrolling, we can say the "camera" follows the leader.
+            // But checking the logic, typical arcade racers often have static backgrounds or looping ones.
+            // Let's make a looping fence in the foreground.
+        };
+
+        const drawFence = (ctx, scrollOffset) => {
+            ctx.fillStyle = FENCE_COLOR;
+            const fenceY = CANVAS_HEIGHT / 2 + 20;
+            const postSpacing = 60;
+            const offset = scrollOffset % postSpacing;
+
+            for (let x = -offset; x < CANVAS_WIDTH; x += postSpacing) {
+                ctx.fillRect(x, fenceY, 10, 40); // Post
+                // Crossbars
+                ctx.fillRect(x, fenceY + 10, postSpacing, 5);
+                ctx.fillRect(x, fenceY + 30, postSpacing, 5);
+            }
+        };
+
+        let frameCounter = 0;
+
         for (const frame of frames) {
-            // Check if we should show podium or race track
+            frameCounter++;
+
             if (frame.showPodium) {
-                // PODIUM VIEW
+                // --- PODIUM VIEW (Reuse existing logic or simplify) ---
                 ctx.fillStyle = '#1a1a2e';
                 ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -233,215 +310,134 @@ module.exports = {
                 ctx.textAlign = 'center';
                 ctx.fillText('🏆 RACE RESULTS 🏆', CANVAS_WIDTH / 2, 50);
 
-                // Podium blocks
+                // Podium logic
                 const podiumConfig = [
-                    { rank: 1, x: 300, height: 150, color: '#ffd700', label: '🥇 1st' }, // Gold - center, tallest
-                    { rank: 2, x: 150, height: 120, color: '#c0c0c0', label: '🥈 2nd' }, // Silver - left
-                    { rank: 3, x: 450, height: 90, color: '#cd7f32', label: '🥉 3rd' }   // Bronze - right
+                    { rank: 1, x: 300, height: 150, color: '#ffd700', label: '🥇 1st' },
+                    { rank: 2, x: 150, height: 120, color: '#c0c0c0', label: '🥈 2nd' },
+                    { rank: 3, x: 450, height: 90, color: '#cd7f32', label: '🥉 3rd' }
                 ];
 
                 podiumConfig.forEach(({ rank, x, height, color, label }) => {
                     const y = 300 - height;
                     const horse = frame.horses[rank - 1];
-
-                    // Safety check for undefined horse
                     if (!horse) return;
 
-                    // Podium block
                     ctx.fillStyle = color;
                     ctx.fillRect(x, y, 100, height);
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = 3;
                     ctx.strokeRect(x, y, 100, height);
 
-                    // Rank label on podium
                     ctx.fillStyle = '#000';
                     ctx.font = 'bold 20px sans-serif';
                     ctx.fillText(label, x + 50, y + height - 10);
 
-                    // Horse emoji above podium
                     const horseImg = imageCache[horse.emoji];
-                    if (horseImg) {
-                        ctx.drawImage(horseImg, x + 20, y - 70, 60, 60);
-                    }
+                    if (horseImg) ctx.drawImage(horseImg, x + 20, y - 70, 60, 60);
 
-                    // Horse name above emoji
                     ctx.fillStyle = '#fff';
                     ctx.font = 'bold 14px sans-serif';
                     ctx.fillText(`#${horse.num} ${horse.name}`, x + 50, y - 80);
                 });
 
-                // 4th and 5th place below
-                ctx.fillStyle = '#888';
-                ctx.font = '16px sans-serif';
-                for (let i = 3; i < Math.min(5, frame.horses.length); i++) {
-                    const horse = frame.horses[i];
-                    const y = 320 + (i - 3) * 30;
-                    ctx.fillText(`${i + 1}th: ${horse.emoji} #${horse.num} ${horse.name}`, CANVAS_WIDTH / 2, y);
-                }
-
                 // Status message
                 ctx.fillStyle = '#ffd700';
                 ctx.font = 'bold 24px sans-serif';
+                ctx.textAlign = 'center';
                 ctx.fillText(frame.status || '', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 20);
+
             } else {
-                // HIPPODROME TRACK VIEW
-                // Background
-                ctx.fillStyle = '#1a4d1a';
-                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                // --- SIDE SCROLLING RACE VIEW ---
 
-                // Track configuration
-                const cx = CANVAS_WIDTH / 2;
-                const cy = CANVAS_HEIGHT / 2;
-                const startAngle = -Math.PI / 2; // Top (12 o'clock)
+                // Determine Camera / Scroll Position
+                // We want to keep the leader somewhat centered or towards the right.
+                // But a simple approach is: Background scrolls based on constant speed + leader speed.
+                // Let's just scroll constantly to simulate movement.
+                const scrollSpeed = 15;
+                const scrollOffset = frameCounter * scrollSpeed;
 
-                const innerRadiusX = 140;
-                const innerRadiusY = 80;
-                const outerRadiusX = 280;
-                const outerRadiusY = 160;
+                drawBackground(ctx, scrollOffset);
+                drawTrack(ctx, scrollOffset);
+                drawFence(ctx, scrollOffset);
 
-                // Draw outer grass border
-                ctx.save();
-                ctx.shadowColor = 'rgba(0,0,0,0.3)';
-                ctx.shadowBlur = 15;
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, outerRadiusX + 10, outerRadiusY + 10, 0, 0, 2 * Math.PI);
-                ctx.fillStyle = '#134d13';
-                ctx.fill();
-                ctx.restore();
+                // Draw Finish Line Logic
+                // If any horse is > 90%, start showing finish line coming from right?
+                // Or just draw distinct finish line based on max progress
 
-                // Draw track surface (beige/sand)
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, outerRadiusX, outerRadiusY, 0, 0, 2 * Math.PI);
-                ctx.fillStyle = '#d4b896';
-                ctx.fill();
+                // In this simplified view, let's map 0-100% progress to x=50 -> x=700 (screen space)
+                // This means horses actually move across the screen, rather than screen moving with them.
+                // It's easier to understand visually.
 
-                // Track outer border
-                ctx.strokeStyle = '#8b6f47';
-                ctx.lineWidth = 3;
-                ctx.stroke();
+                const startX = 50;
+                const endX = CANVAS_WIDTH - 100; // Finish line x
+                const raceWidth = endX - startX;
 
-                // Draw lane dividers (5 lanes)
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([5, 5]);
-                for (let i = 1; i < 5; i++) {
-                    const laneRadiusX = innerRadiusX + ((outerRadiusX - innerRadiusX) / 5) * i;
-                    const laneRadiusY = innerRadiusY + ((outerRadiusY - innerRadiusY) / 5) * i;
-                    ctx.beginPath();
-                    ctx.ellipse(cx, cy, laneRadiusX, laneRadiusY, 0, 0, 2 * Math.PI);
-                    ctx.stroke();
-                }
-                ctx.setLineDash([]);
-
-                // Cut out inner grass infield
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, innerRadiusX, innerRadiusY, 0, 0, 2 * Math.PI);
-                ctx.fillStyle = '#1a4d1a';
-                ctx.fill();
-
-                // Inner border
-                ctx.strokeStyle = '#8b6f47';
-                ctx.lineWidth = 3;
-                ctx.stroke();
-
-                // Draw START/FINISH line at top
-                const finishLineX = cx;
-                const finishLineY1 = cy - innerRadiusY;
-                const finishLineY2 = cy - outerRadiusY;
-
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 6;
-                ctx.beginPath();
-                ctx.moveTo(finishLineX, finishLineY1);
-                ctx.lineTo(finishLineX, finishLineY2);
-                ctx.stroke();
-
-                // Checkered pattern on finish line
-                ctx.fillStyle = '#000000';
-                const checkerSize = 8;
-                for (let i = 0; i < Math.abs(finishLineY2 - finishLineY1) / checkerSize; i++) {
-                    if (i % 2 === 0) {
-                        ctx.fillRect(finishLineX - 3, finishLineY1 + i * checkerSize, 6, checkerSize);
-                    }
-                }
+                // Draw Finish Line
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(endX, CANVAS_HEIGHT / 2 + 30, 10, 250);
+                // Checkered banner
+                const bannerY = CANVAS_HEIGHT / 2 - 50;
+                ctx.fillStyle = '#000';
+                ctx.fillRect(endX - 5, bannerY, 20, 350); // Pole
 
                 // Draw Horses
-                if (frame.horses) {
-                    // Draw from outer to inner so inner horses appear on top
-                    const sortedHorses = [...frame.horses].reverse();
+                const trackY = CANVAS_HEIGHT / 2 + 30;
+                const laneHeight = 250 / 5;
 
-                    sortedHorses.forEach((horse, reverseIdx) => {
-                        const i = frame.horses.length - 1 - reverseIdx;
+                frame.horses.forEach((horse, idx) => {
+                    const progress = horse.position / 100;
+                    const x = startX + (progress * raceWidth);
+                    const y = trackY + (idx * laneHeight) + (laneHeight / 2) - 30; // Center in lane
 
-                        // Lane positioning (middle of each lane)
-                        const laneWidth = (outerRadiusX - innerRadiusX) / 5;
-                        const laneRadiusX = innerRadiusX + (i * laneWidth) + (laneWidth / 2);
-                        const laneRadiusY = innerRadiusY + (i * ((outerRadiusY - innerRadiusY) / 5)) + ((outerRadiusY - innerRadiusY) / 10);
+                    // Bobbing animation
+                    const bobOffset = Math.sin((frameCounter + idx) * 0.8) * 5;
 
-                        // Calculate angle (0-100% → 0-360°, starting from top)
-                        const progressFraction = horse.position / 100;
-                        const angle = startAngle + (progressFraction * 2 * Math.PI);
+                    // Shadow
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                    ctx.beginPath();
+                    ctx.ellipse(x + 30, y + 60, 20, 5, 0, 0, 2 * Math.PI);
+                    ctx.fill();
 
-                        // Position on track
-                        const x = cx + laneRadiusX * Math.cos(angle);
-                        const y = cy + laneRadiusY * Math.sin(angle);
-
-                        // Rotation (tangent to path)
-                        const rotation = angle + (Math.PI / 2);
-
-                        ctx.save();
-                        ctx.translate(x, y);
-
-                        // Leader highlight
-                        const maxPos = Math.max(...frame.horses.map(h => h.position));
-                        const isLeader = Math.abs(horse.position - maxPos) < 0.1 && horse.position > 0;
-
-                        if (isLeader) {
-                            ctx.fillStyle = 'rgba(255, 215, 0, 0.5)';
-                            ctx.beginPath();
-                            ctx.arc(0, 0, 28, 0, 2 * Math.PI);
-                            ctx.fill();
-                        }
-
-                        // Rotate for horse sprite
-                        ctx.rotate(rotation);
-
-                        const horseImg = imageCache[horse.emoji];
-                        if (horseImg) {
-                            ctx.drawImage(horseImg, -22, -22, 44, 44);
-                        }
-                        ctx.restore();
-
-                        // Horse number label (unrotated, with background)
-                        ctx.save();
-                        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    // Dust particles (updates every few frames)
+                    if (frameCounter % 3 === 0 && horse.position < 100) {
+                        ctx.fillStyle = 'rgba(121, 85, 72, 0.4)'; // Dust color
                         ctx.beginPath();
-                        ctx.arc(x, y - 30, 12, 0, 2 * Math.PI);
+                        ctx.arc(x, y + 50, 5 + Math.random() * 5, 0, 2 * Math.PI);
                         ctx.fill();
+                    }
 
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = 'bold 14px sans-serif';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(horse.num, x, y - 30);
-                        ctx.restore();
-                    });
-                }
+                    // Horse Emoji
+                    const horseImg = imageCache[horse.emoji];
+                    if (horseImg) {
+                        ctx.drawImage(horseImg, x, y + bobOffset, 64, 64);
+                    }
 
-                // Center infield decoration
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, 120, 65, 0, 0, 2 * Math.PI);
-                ctx.fill();
+                    // Number Badge
+                    ctx.fillStyle = '#2196F3'; // Blue badge
+                    ctx.beginPath();
+                    ctx.arc(x + 10, y + bobOffset + 10, 10, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(horse.num, x + 10, y + bobOffset + 14);
 
-                // Status text in center
-                ctx.fillStyle = '#ffd700';
-                ctx.font = 'bold 28px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(frame.status || '', cx, cy);
-            } // Close else block for race track view
+                    // Name tag (floating above)
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    ctx.fillRect(x, y + bobOffset - 20, ctx.measureText(horse.name).width + 10, 20);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px sans-serif';
+                    ctx.fillText(horse.name, x + 5 + ctx.measureText(horse.name).width / 2, y + bobOffset - 6);
+                });
+
+                // Status Text
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 4;
+                ctx.font = 'bold 32px sans-serif';
+                ctx.strokeText(frame.status || '', CANVAS_WIDTH / 2, 80);
+                ctx.fillText(frame.status || '', CANVAS_WIDTH / 2, 80);
+            }
 
             encoder.addFrame(ctx);
         }
