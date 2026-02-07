@@ -263,23 +263,24 @@ module.exports = {
             const trackBottom = trackTop + trackHeight;
 
             const postWidth = 10;
-            // Far post
+            // Far post (centered on x)
             ctx.fillStyle = '#555';
-            ctx.fillRect(x + 5, trackTop - 60, postWidth, trackHeight + 60);
+            ctx.fillRect(x - 5, trackTop - 60, postWidth, trackHeight + 60);
 
             // Checkered Banner
             const bannerY = trackTop - 60;
             const bannerHeight = 40;
             const checkSize = 20;
 
-            ctx.fillStyle = '#000'; // Banner border
-            ctx.fillRect(x - 5, bannerY - 5, 30, bannerHeight + 10);
+            ctx.fillStyle = '#000'; // Banner border (centered on x)
+            const bannerWidth = 30;
+            ctx.fillRect(x - 15, bannerY - 5, bannerWidth, bannerHeight + 10);
 
             for (let r = 0; r < 2; r++) { // 2 rows
                 for (let c = 0; c < 1; c++) { // 1 column vertical strip
                     const cy = bannerY + (r * checkSize);
                     ctx.fillStyle = ((r + c) % 2 === 0) ? '#fff' : '#000';
-                    ctx.fillRect(x, cy, 20, checkSize);
+                    ctx.fillRect(x - 10, cy, 20, checkSize);
                 }
             }
 
@@ -287,15 +288,16 @@ module.exports = {
             const stripWidth = 20;
             const numChecks = 10;
             const checkHeight = trackHeight / numChecks;
+            const startX = x - 10; // Start drawing from x - half width
 
             for (let i = 0; i < numChecks; i++) {
                 const cy = trackTop + (i * checkHeight);
                 // Row 1
                 ctx.fillStyle = (i % 2 === 0) ? '#fff' : '#000';
-                ctx.fillRect(x, cy, stripWidth / 2, checkHeight);
+                ctx.fillRect(startX, cy, stripWidth / 2, checkHeight);
                 // Row 2
                 ctx.fillStyle = (i % 2 !== 0) ? '#fff' : '#000';
-                ctx.fillRect(x + stripWidth / 2, cy, stripWidth / 2, checkHeight);
+                ctx.fillRect(startX + stripWidth / 2, cy, stripWidth / 2, checkHeight);
             }
         };
 
@@ -496,13 +498,13 @@ module.exports = {
                 // Used nose X position
                 const leaderNoseX = startX + (leader.position / 100) * raceWidth;
 
-                // White border for visibility
+                // White border for visibility (thinner and centered)
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(leaderNoseX + 2, trackY - 2, 16, trackHeight + 4);
+                ctx.fillRect(leaderNoseX - 2, trackY - 2, 4, trackHeight + 4);
 
-                // Red center
+                // Red center (thinner and centered)
                 ctx.fillStyle = '#ff0000';
-                ctx.fillRect(leaderNoseX + 4, trackY, 12, trackHeight);
+                ctx.fillRect(leaderNoseX - 1, trackY, 2, trackHeight);
 
                 // Text status
                 ctx.fillStyle = '#fff';
