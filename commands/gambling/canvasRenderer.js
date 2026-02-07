@@ -2,7 +2,7 @@ const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const GifEncoder = require('gif-encoder-2');
 
 const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 400;
+const CANVAS_HEIGHT = 600;
 
 const SYMBOL_SIZE = 80;
 const REEL_X_START = 220;
