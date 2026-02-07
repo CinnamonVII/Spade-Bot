@@ -22,11 +22,11 @@ module.exports = {
 
         xpCooldowns.set(userId, now);
 
-         
+
         const xpAmount = Math.floor(Math.random() * (XP_CONFIG.XP_PER_MESSAGE_MAX - XP_CONFIG.XP_PER_MESSAGE_MIN + 1)) + XP_CONFIG.XP_PER_MESSAGE_MIN;
 
         try {
-            const { level, leveledUp } = updateXP(userId, xpAmount);
+            const { level, leveledUp } = await updateXP(userId, xpAmount);
 
             if (leveledUp) {
                 const channel = message.channel;

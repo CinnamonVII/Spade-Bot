@@ -328,8 +328,8 @@ async function initDatabase() {
             const items = [
                 ['PinpinJR Senpai Role', 100000, 'Become a true Senpai with this exclusive role!', null, 'role', null],
                 ['Revenue Boost', 5000, 'Multiplies your earnings (Daily & Work) by 1.5x!', null, 'boost', null],
-                ['Cosmic Void', 15000, 'A deep space background for your profile card.', null, 'background', 'src/assets/backgrounds/cosmic_void.png'],
-                ['Neon Cyberpunk', 20000, 'A futuristic neon city background.', null, 'background', 'src/assets/backgrounds/neon_city.png'],
+                ['Legacy Bot', 15000, "A 'nostalgic' look back at a week ago ig? ", null, 'background', 'src/assets/backgrounds/legacy_bot.png'],
+                ['Night City View', 20000, 'A breathtaking view of the city at night.', null, 'background', 'src/assets/backgrounds/night_city.jpg'],
                 ['Enchanted Forest', 12000, 'A mystical forest background.', null, 'background', 'src/assets/backgrounds/forest.png']
             ];
 

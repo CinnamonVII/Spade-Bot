@@ -16,7 +16,7 @@ module.exports = {
         const isNewActive = newState.channelId && !newState.mute && !newState.deaf;
         const wasOldActive = oldState.channelId && !oldState.mute && !oldState.deaf;
 
-         
+
         if (isNewActive && !wasOldActive) {
             const memberCount = newState.channel?.members?.size || 0;
             if (memberCount >= XP_CONFIG.VOICE_MIN_MEMBERS) {
@@ -24,7 +24,7 @@ module.exports = {
             }
         }
 
-         
+
         if (!isNewActive && wasOldActive) {
             if (voiceTracker.has(userId)) {
                 const startTime = voiceTracker.get(userId);
@@ -34,12 +34,12 @@ module.exports = {
                 voiceTracker.delete(userId);
 
                 const count = oldState.channel?.members?.size || 0;
-                 
+
                 if (durationMinutes > 0 && count >= XP_CONFIG.VOICE_MIN_MEMBERS) {
                     const xpEarned = durationMinutes * XP_CONFIG.XP_VOICE_PER_MINUTE;
 
                     try {
-                        const { level, leveledUp } = updateXP(userId, xpEarned);
+                        const { level, leveledUp } = await updateXP(userId, xpEarned);
 
                         if (leveledUp) {
                             const sysChannel = newState.guild.systemChannel;

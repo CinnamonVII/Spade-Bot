@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const path = require('path');
+const fs = require('fs');
 const { createCanvas, GlobalFonts, loadImage } = require('@napi-rs/canvas');
 const { getUserStats, getRank } = require('../../database');
 const XP_CONFIG = require('../../config/xp_config');
@@ -35,13 +36,13 @@ module.exports = {
 
         await interaction.deferReply();
 
-        
+
         GlobalFonts.registerFromPath(path.join(__dirname, '../../src/assets/fonts/Inter-Bold.ttf'), 'InterBold');
         GlobalFonts.registerFromPath(path.join(__dirname, '../../src/assets/fonts/Inter-Regular.ttf'), 'InterRegular');
 
         const target = interaction.options.getUser('user') || interaction.user;
-        const stats = getUserStats(target.id) || { xp: 0, level: 0 };
-        const rank = getRank(target.id);
+        const stats = await getUserStats(target.id) || { xp: 0, level: 0 };
+        const rank = await getRank(target.id);
 
         const currentXp = stats.xp;
         const currentLevel = stats.level;
@@ -55,32 +56,46 @@ module.exports = {
         let pct = currentInLevel / neededForLevel;
         if (pct > 1) pct = 1;
 
-        
+
         const canvas = createCanvas(800, 250);
         const ctx = canvas.getContext('2d');
 
-        
-        
-        
-        drawDefaultGradient(ctx);
+        // Draw background (custom if equipped, otherwise default gradient)
+        const equippedBg = stats.equipped_bg;
+        let bgDrawn = false;
+        if (equippedBg) {
+            const bgPath = path.join(__dirname, '../../', equippedBg);
+            if (fs.existsSync(bgPath)) {
+                try {
+                    const bgImage = await loadImage(bgPath);
+                    ctx.drawImage(bgImage, 0, 0, 800, 250);
+                    bgDrawn = true;
+                } catch (e) {
+                    console.error('[Rank] Failed to load custom background:', e.message);
+                }
+            }
+        }
+        if (!bgDrawn) {
+            drawDefaultGradient(ctx);
+        }
 
-        
+
         ctx.save();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; 
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
         ctx.shadowBlur = 20;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 10;
-        roundedImage(ctx, 40, 40, 720, 170, 20); 
+        roundedImage(ctx, 40, 40, 720, 170, 20);
         ctx.fill();
         ctx.restore();
 
-        
+
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        
+
         const avatarSize = 130;
         const avatarX = 70;
         const avatarY = 60;
@@ -100,58 +115,58 @@ module.exports = {
         }
         ctx.restore();
 
-        
+
         ctx.strokeStyle = '#FFFFFF';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
         ctx.stroke();
 
-        
+
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '36px InterBold'; 
+        ctx.font = '36px InterBold';
         ctx.textAlign = 'left';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
         ctx.shadowBlur = 4;
         ctx.fillText(target.username, 230, 95);
-        ctx.shadowBlur = 0; 
+        ctx.shadowBlur = 0;
 
-        
+
         ctx.font = '24px InterRegular';
         ctx.fillStyle = '#DDDDDD';
         ctx.fillText(`RANK #${rank}`, 230, 130);
 
-        
+
         ctx.textAlign = 'right';
         ctx.font = '40px InterBold';
-        ctx.fillStyle = '#5865F2'; 
+        ctx.fillStyle = '#5865F2';
         ctx.fillText(`LEVEL ${currentLevel}`, 730, 95);
 
         ctx.font = '20px InterRegular';
         ctx.fillStyle = '#CCCCCC';
         ctx.fillText(`${currentInLevel.toLocaleString()} / ${neededForLevel.toLocaleString()} XP`, 730, 130);
 
-        
+
         const barX = 230;
         const barY = 155;
         const barW = 500;
         const barH = 12;
 
-        
+
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         roundedImage(ctx, barX, barY, barW, barH, 6);
         ctx.fill();
 
-        
+
         const fillW = Math.max(0, barW * pct);
         if (fillW > 0) {
             const barGrad = ctx.createLinearGradient(barX, 0, barX + fillW, 0);
             barGrad.addColorStop(0, '#5865F2');
-            barGrad.addColorStop(1, '#00C9FF'); 
+            barGrad.addColorStop(1, '#00C9FF');
 
             ctx.fillStyle = barGrad;
             ctx.shadowColor = '#5865F2';
-            ctx.shadowBlur = 10; 
+            ctx.shadowBlur = 10;
 
             ctx.save();
             roundedImage(ctx, barX, barY, fillW, barH, 6);
