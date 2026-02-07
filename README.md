@@ -1,3 +1,41 @@
+##### Last Update
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Spade-Bot
 Hello, this repo is for a home made discord bot that is focused on gambling and economy as well as a link between your discord and an Aternos minecraft server, hope you like it!
 
