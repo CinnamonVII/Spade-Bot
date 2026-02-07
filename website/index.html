@@ -1,89 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spade Bot | Ultimate High-Stakes Economy</title>
+    <title>SPADE-OS TERMINAL V.2.0.77</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-    <div class="background-glow"></div>
-    
-    <nav>
-        <div class="logo">♠️ SPADE BOT</div>
-        <div class="nav-links">
-            <a href="#features">Features</a>
-            <a href="#market">Stock Market</a>
-            <a href="#games">Games</a>
-            <a href="#" class="btn-primary">Add to Server</a>
-        </div>
-    </nav>
+    <div class="screen-overlay"></div>
+    <div class="scanlines"></div>
 
-    <header class="hero">
-        <div class="hero-content">
-            <h1>The House <span class="gold-text">Always Wins</span>... Unless You're Smart.</h1>
-            <p>Experience the most advanced economy and gambling bot on Discord. Real-time stocks, high-stakes horse racing, and a rigged... fair casino.</p>
-            <div class="cta-group">
-                <a href="#" class="btn-primary large">Start Gambling</a>
-                <a href="#features" class="btn-secondary">View Features</a>
+    <div class="terminal-wrapper">
+        <nav>
+            <div class="logo">
+                <span class="bracket">[</span> APP.SPADE_BOT.EXE <span class="bracket">]</span>
+                <span class="status-blink">_</span>
             </div>
-        </div>
-        <div class="hero-visual">
-            <div class="card glass-card float-anim">
-                <div class="card-header">
-                    <span>📈 SPDE</span>
-                    <span class="green-text">+12.4%</span>
+            <div class="nav-links">
+                <a href="#features">:: FEATURES ::</a>
+                <a href="#market">:: MARKET ::</a>
+                <a href="#protocol" class="btn-terminal">INITIATE_PROTOCOL</a>
+            </div>
+        </nav>
+
+        <header class="hero">
+            <div class="crt-content">
+                <div class="system-message">
+                    > SYSTEM ALERT: ECONOMY DETECTED<br>
+                    > LOADING ASSETS... 100%<br>
+                    > WELCOME, USER.
                 </div>
-                <div class="chart-line"></div>
-                <div class="card-footer">
-                    <span>Current Price</span>
-                    <span class="gold-text">$1,240</span>
+                <h1>THE HOUSE <br><span class="glitch-text">ALWAYS WINS</span></h1>
+                <p class="typewriter">Simulating high-stakes economy in a post-discord wasteland. Manage stocks, gamble
+                    credits, and survive the crash.</p>
+
+                <div class="cta-group">
+                    <a href="#" class="btn-terminal large">[ ENTER_SIMULATION ]</a>
+                    <a href="#data" class="btn-outline">[ READ_DOCS ]</a>
                 </div>
             </div>
-        </div>
-    </header>
 
-    <section id="stats" class="stats-bar">
-        <div class="stat-item">
-            <h3>100+</h3>
-            <p>Unique Stocks</p>
-        </div>
-        <div class="stat-item">
-            <h3>$1B+</h3>
-            <p>Economy Cap</p>
-        </div>
-        <div class="stat-item">
-            <h3>24/7</h3>
-            <p>Market Uptime</p>
-        </div>
-    </section>
+            <div class="pip-boy-visual">
+                <div class="monitor-frame">
+                    <div class="monitor-screen">
+                        <div class="header-bar">
+                            <span>STAT</span>
+                            <span>INV</span>
+                            <span class="active">DATA</span>
+                            <span>MAP</span>
+                            <span>RADIO</span>
+                        </div>
+                        <div class="screen-body">
+                            <div class="vault-boy">
+                                <pre>
+      .---.
+     /_____\
+    ( ' . ' )
+     \_-_-__/
+    /| . . |\
+   / |  .  | \
+  /  | . . |  \    
+                                </pre>
+                            </div>
+                            <div class="stats-list">
+                                <div class="stat-row"><span>STR</span>
+                                    <div class="bar" style="width: 80%"></div>
+                                </div>
+                                <div class="stat-row"><span>LCK</span>
+                                    <div class="bar" style="width: 10%"></div>
+                                </div>
+                                <div class="stat-row"><span>CHR</span>
+                                    <div class="bar" style="width: 90%"></div>
+                                </div>
+                                <div class="stat-row"><span>INT</span>
+                                    <div class="bar" style="width: 60%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="footer-bar">
+                            <span>HP 100/100</span>
+                            <span>AP 85/90</span>
+                            <span>LVL 55</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
 
-    <section id="features" class="features">
-        <h2>Premium Features</h2>
-        <div class="feature-grid">
-            <div class="feature-card glass-card">
-                <div class="icon">🏇</div>
-                <h3>Horse Racing</h3>
-                <p>Bet on your favorite horse in our 3D-rendered track. Watch the race unfold in real-time with dynamic odds.</p>
+        <section id="stats" class="status-grid">
+            <div class="terminal-box">
+                <h4>// TOTAL_MARKET_CAP</h4>
+                <div class="big-number">> $1,240,500</div>
             </div>
-            <div class="feature-card glass-card">
-                <div class="icon">📈</div>
-                <h3>Stock Market 2.0</h3>
-                <p>Trade stocks with limited supply. Analyze 1-hour history graphs, track the Spade Index, and corner the market.</p>
+            <div class="terminal-box">
+                <h4>// ACTIVE_TRADERS</h4>
+                <div class="big-number">> 342</div>
             </div>
-            <div class="feature-card glass-card">
-                <div class="icon">🎰</div>
-                <h3>Casino Games</h3>
-                <p>Slots, Blackjack, Crash, and Roulette. All designed with premium graphics and fair (mostly) algorithms.</p>
+            <div class="terminal-box">
+                <h4>// MARKET_STATUS</h4>
+                <div class="big-number blink-text">OPEN</div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <footer>
-        <p>&copy; 2026 Spade Bot. All rights reserved. Do not gamble your real life savings.</p>
-    </footer>
+        <section id="features" class="features">
+            <h2><span class="bracket">[</span> MODULES_INSTALLED <span class="bracket">]</span></h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="card-border"></div>
+                    <h3>STOCK_MARKET.MOD</h3>
+                    <p>Real-time trading simulation. Buy low, sell high, crash the market.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-border"></div>
+                    <h3>CASINO_CORE.DLL</h3>
+                    <p>Blackjack, Slots, and Roulette. The algorithms are rigged in your favor (maybe).</p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-border"></div>
+                    <h3>HORSE_RACE.EXE</h3>
+                    <p>3D-rendered equine simulation. Bet credits on synthetic lifeforms.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>PROPERTY OF SPADE INDUSTRIES. UNAUTHORIZED ACCESS IS TREASON.</p>
+            <p>TERM.ID: 884-290-X</p>
+        </footer>
+    </div>
 </body>
+
 </html>

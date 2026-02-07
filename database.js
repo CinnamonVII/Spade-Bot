@@ -6,10 +6,10 @@ const BANK_SYSTEM_ID = 'BANK_SYSTEM';
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('railway') ? { rejectUnauthorized: false } : false,
-    max: 5,                          
-    idleTimeoutMillis: 30000,        
-    connectionTimeoutMillis: 10000,  
-    allowExitOnIdle: true            
+    max: 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+    allowExitOnIdle: true
 });
 async function query(text, params) {
     return pool.query(text, params);
@@ -252,17 +252,57 @@ async function initDatabase() {
                 ALTER TABLE market_listings ALTER COLUMN stock_id DROP NOT NULL;
             END $$;
         `);
+
+        // NEW: Stock History & Index
+        await query(`
+            CREATE TABLE IF NOT EXISTS stock_history (
+                id SERIAL PRIMARY KEY,
+                stock_id INT NOT NULL,
+                price BIGINT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(stock_id) REFERENCES stocks(id)
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS market_index_history (
+                id SERIAL PRIMARY KEY,
+                value BIGINT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // MIGRATION: Reset Economy for Limited Supply (100 shares)
+        // We check if stock_history is empty to detect "fresh" feature deployment
+        const historyCheck = await query('SELECT COUNT(*) as count FROM stock_history');
+        if (parseInt(historyCheck.rows[0].count) === 0) {
+            console.log('[DB] Performing Stock Market 2.0 Migration (Resetting Supply)...');
+
+            // 1. Clear existing ownership & listings
+            await query('DELETE FROM market_listings WHERE stock_id IS NOT NULL');
+            await query('DELETE FROM user_stocks');
+
+            // 2. Initialize stocks with 100 shares owned by Bank System
+            const allStocks = await query('SELECT id FROM stocks');
+            for (const s of allStocks.rows) {
+                await query(`
+                    INSERT INTO user_stocks (user_id, stock_id, shares, avg_price)
+                    VALUES ($1, $2, 100, 0)
+                `, [BANK_SYSTEM_ID, s.id]);
+            }
+            console.log('[DB] Stock Market 2.0 Migration Complete: 100 shares/company assigned to Bank.');
+        }
         await query('INSERT INTO users (id, balance) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING', [BANK_SYSTEM_ID, 10000]);
         await query('UPDATE users SET balance = 10000 WHERE id = $1 AND balance = 0', [BANK_SYSTEM_ID]);
         const stocks = [
-            ['NVDA', 'NVIDIA Corporation', 8500, 0.12],       
-            ['AAPL', 'Apple Inc.', 17500, 0.06],              
-            ['MSFT', 'Microsoft Corporation', 38000, 0.07],   
-            ['TSLA', 'Tesla Inc.', 20000, 0.15],              
-            ['AMZN', 'Amazon.com Inc.', 15000, 0.08],         
-            ['GOOGL', 'Alphabet Inc.', 14000, 0.08],          
-            ['META', 'Meta Platforms Inc.', 4500, 0.10],      
-            ['BTC', 'Bitcoin Index Fund', 45000, 0.20]        
+            ['NVDA', 'NVIDIA Corporation', 8500, 0.12],
+            ['AAPL', 'Apple Inc.', 17500, 0.06],
+            ['MSFT', 'Microsoft Corporation', 38000, 0.07],
+            ['TSLA', 'Tesla Inc.', 20000, 0.15],
+            ['AMZN', 'Amazon.com Inc.', 15000, 0.08],
+            ['GOOGL', 'Alphabet Inc.', 14000, 0.08],
+            ['META', 'Meta Platforms Inc.', 4500, 0.10],
+            ['BTC', 'Bitcoin Index Fund', 45000, 0.20]
         ];
         const realTickers = stocks.map(s => s[0]);
         for (const [ticker, name, price, volatility] of stocks) {
@@ -371,7 +411,7 @@ async function getRank(userId) {
 }
 async function getXpLeaderboard(limit = 10) {
     const res = await query('SELECT id, xp, level FROM users ORDER BY xp DESC LIMIT $1', [limit]);
-    return res.rows.map(row => ({ ...row, xp: parseInt(row.xp), level: parseInt(row.level) })); 
+    return res.rows.map(row => ({ ...row, xp: parseInt(row.xp), level: parseInt(row.level) }));
 }
 async function getUserStats(userId) {
     const res = await query('SELECT * FROM users WHERE id = $1', [userId]);
@@ -488,7 +528,7 @@ async function updateGuildSettings(guildId, settings) {
     return res.rowCount;
 }
 module.exports = {
-    pool, 
+    pool,
     query,
     initDatabase,
     withTransaction,

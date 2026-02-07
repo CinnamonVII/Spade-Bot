@@ -124,6 +124,105 @@ const drawFrame = (ctx, reels, status, user, topBottom = [[], []]) => {
     ctx.font = 'bold 24px sans-serif';
     ctx.fillText(status, CANVAS_WIDTH / 2, 380);
 };
+
+const drawStockGraph = async (ticker, history, currentPrice) => {
+    const canvas = createCanvas(800, 400);
+    const ctx = canvas.getContext('2d');
+
+    // Theme
+    const isUp = history.length > 0 && currentPrice >= history[0].price;
+    const lineColor = isUp ? '#00ff00' : '#ff0000';
+    const fillColor = isUp ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 0, 0, 0.1)';
+    const bgColor = '#1a1a1a';
+    const textColor = '#ffffff';
+    const gridColor = '#333333';
+
+    // Background
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, 800, 400);
+
+    // Padding & Graph Area
+    const padding = { top: 60, bottom: 40, left: 80, right: 40 };
+    const graphWidth = 800 - padding.left - padding.right;
+    const graphHeight = 400 - padding.top - padding.bottom;
+
+    // Title
+    ctx.fillStyle = textColor;
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${ticker} Price History (1H)`, padding.left, 40);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = lineColor;
+    ctx.fillText(`$${currentPrice.toLocaleString()}`, 800 - padding.right, 40);
+
+    if (history.length < 2) {
+        ctx.fillStyle = '#666';
+        ctx.textAlign = 'center';
+        ctx.font = '16px sans-serif';
+        ctx.fillText('Insufficient data for graph', 400, 200);
+        return await canvas.encode('png');
+    }
+
+    // Determine Y scale
+    const prices = history.map(h => parseInt(h.price));
+    prices.push(currentPrice); // Include current
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const range = maxPrice - minPrice || 1; // Avoid divide by zero
+    // Add 10% padding to range
+    const graphMin = Math.floor(minPrice - (range * 0.1));
+    const graphMax = Math.ceil(maxPrice + (range * 0.1));
+    const graphRange = graphMax - graphMin;
+
+    // Helper to map values
+    const getX = (index) => padding.left + (index / (history.length)) * graphWidth;
+    const getY = (price) => (padding.top + graphHeight) - ((price - graphMin) / graphRange) * graphHeight;
+
+    // Draw Grid (Y axis)
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 1;
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'right';
+    const numGridLines = 5;
+    for (let i = 0; i <= numGridLines; i++) {
+        const val = graphMin + (graphRange * (i / numGridLines));
+        const y = (padding.top + graphHeight) - (graphHeight * (i / numGridLines));
+
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(800 - padding.right, y);
+        ctx.stroke();
+
+        ctx.fillText(`$${Math.floor(val).toLocaleString()}`, padding.left - 10, y + 4);
+    }
+
+    // Draw Line
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    history.forEach((point, i) => {
+        const x = getX(i);
+        const y = getY(point.price);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    // Connect to current price if last history point isn't current
+    const lastX = getX(history.length);
+    const lastY = getY(currentPrice);
+    ctx.lineTo(lastX, lastY);
+    ctx.stroke();
+
+    // Draw Gradient Fill
+    ctx.lineTo(lastX, padding.top + graphHeight);
+    ctx.lineTo(padding.left, padding.top + graphHeight);
+    ctx.closePath();
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+
+    return await canvas.encode('png');
+};
+
 module.exports = {
     drawSlots: async (reels, status, user, topBottom = [[], []]) => {
         const canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -148,6 +247,7 @@ module.exports = {
         encoder.finish();
         return encoder.out.getData();
     },
+    drawStockGraph,
     createHorseRaceGif: async (frames) => {
         const encoder = new GifEncoder(CANVAS_WIDTH, CANVAS_HEIGHT);
         const canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);

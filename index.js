@@ -14,7 +14,11 @@ const botHandler = require('./src/handlers/botHandler');
 const { initErrorHandlers } = require('./src/utils/errorHandler');
 const { startScheduledBackups } = require('./src/utils/backup');
 const { startBankAI } = require('./src/ai/bankAI');
+const { startMarketSimulation } = require('./src/ai/stockMarket');
 const guildEvents = require('./src/handlers/guildEvents');
+const path = require('node:path');
+const fs = require('node:fs');
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -24,7 +28,12 @@ const client = new Client({
         GatewayIntentBits.GuildVoiceStates
     ]
 });
+
+// Load environment validation
+validateEnvironment();
+
 client.commands = new Collection();
+
 async function gracefulShutdown() {
     console.log('Shutting down...');
     try {
@@ -37,9 +46,9 @@ async function gracefulShutdown() {
         process.exit(1);
     }
 }
+
 (async () => {
     try {
-        validateEnvironment();
         await initDatabase();
         commandHandler(client);
         eventHandler(client);
@@ -48,6 +57,8 @@ async function gracefulShutdown() {
         initErrorHandlers(client);
         startScheduledBackups(client);
         startBankAI();
+        startMarketSimulation();
+
         const discordToken = process.env.DISCORD_TOKEN;
         await client.login(discordToken);
     } catch (error) {
