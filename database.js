@@ -330,7 +330,7 @@ async function initDatabase() {
                 ['Revenue Boost', 5000, 'Multiplies your earnings (Daily & Work) by 1.5x!', null, 'boost', null],
                 ['Legacy Bot', 15000, "A 'nostalgic' look back at a week ago ig? ", null, 'background', 'src/assets/backgrounds/legacy_bot.png'],
                 ['Night City View', 20000, 'A breathtaking view of the city at night.', null, 'background', 'src/assets/backgrounds/night_city.jpg'],
-                ['Enchanted Forest', 12000, 'A mystical forest background.', null, 'background', 'src/assets/backgrounds/forest.png']
+                ['Epsteinian', 12000, 'A totally normal island background.', null, 'background', 'src/assets/backgrounds/epsteinian.png']
             ];
 
             for (const item of items) {
