@@ -1,8 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { query, withTransaction, ensureUser, hasOverdueLoan } = require('../../database');
 const CONSTANTS = require('../../config/constants');
-
-// Roulette wheel numbers and colors
 const WHEEL = [
     { num: 0, color: 'green' },
     { num: 32, color: 'red' }, { num: 15, color: 'black' }, { num: 19, color: 'red' },
@@ -18,7 +16,6 @@ const WHEEL = [
     { num: 7, color: 'red' }, { num: 28, color: 'black' }, { num: 12, color: 'red' },
     { num: 35, color: 'black' }, { num: 3, color: 'red' }, { num: 26, color: 'black' }
 ];
-
 const BET_TYPES = {
     'red': { check: (r) => r.color === 'red', payout: 2 },
     'black': { check: (r) => r.color === 'black', payout: 2 },
@@ -31,7 +28,6 @@ const BET_TYPES = {
     '2nd12': { check: (r) => r.num >= 13 && r.num <= 24, payout: 3 },
     '3rd12': { check: (r) => r.num >= 25 && r.num <= 36, payout: 3 }
 };
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('roulette')
@@ -55,36 +51,25 @@ module.exports = {
                     { name: '3rd Dozen (25-36)', value: '3rd12' }
                 )
         ),
-
     async execute(interaction) {
         const userId = interaction.user.id;
         await ensureUser(userId);
-
-        // Check for overdue loans
         const hasOverdue = await hasOverdueLoan(userId);
         if (hasOverdue) {
             return interaction.reply({ content: '❌ You have overdue loans! Pay them back with `/bank repay` before gambling.', ephemeral: true });
         }
-
         const amount = interaction.options.getInteger('amount');
         const betType = interaction.options.getString('bet');
-
-        // Check balance
         const userRes = await query('SELECT balance FROM users WHERE id = $1', [userId]);
         const balance = parseInt(userRes.rows[0]?.balance || 0);
-
         if (balance < amount) {
             return interaction.reply({ content: `❌ Insufficient funds. You have **$${balance.toLocaleString()}**.`, ephemeral: true });
         }
-
-        // Spin the wheel
         const result = WHEEL[Math.floor(Math.random() * WHEEL.length)];
         const betInfo = BET_TYPES[betType];
         const won = betInfo.check(result);
         const payout = won ? amount * betInfo.payout : 0;
         const netGain = payout - amount;
-
-        // Update balance
         await withTransaction(async (client) => {
             if (won) {
                 await client.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [netGain, userId]);
@@ -92,10 +77,7 @@ module.exports = {
                 await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, userId]);
             }
         });
-
-        // Color emoji
         const colorEmoji = result.color === 'red' ? '🔴' : result.color === 'black' ? '⚫' : '🟢';
-
         const embed = new EmbedBuilder()
             .setTitle('🎰 Roulette')
             .setColor(won ? CONSTANTS.COLOR_SUCCESS : CONSTANTS.COLOR_ERROR)
@@ -105,7 +87,6 @@ module.exports = {
                 { name: 'Result', value: won ? `🎉 Won **$${payout.toLocaleString()}**!` : '💸 Lost!', inline: true }
             )
             .setTimestamp();
-
         return interaction.reply({ embeds: [embed] });
     }
 };

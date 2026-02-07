@@ -2,8 +2,6 @@ const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discor
 const { query, withTransaction, ensureUser, hasOverdueLoan } = require('../../database');
 const CONSTANTS = require('../../config/constants');
 const canvasRenderer = require('./canvasRenderer');
-
-// Horse names and base stats
 const HORSES = [
     { name: 'Thunder Bolt', emoji: '🐴', speed: 0.85, luck: 0.15 },
     { name: 'Midnight Runner', emoji: '🏇', speed: 0.80, luck: 0.20 },
@@ -11,10 +9,7 @@ const HORSES = [
     { name: 'Storm Chaser', emoji: '🐎', speed: 0.75, luck: 0.25 },
     { name: 'Lucky Star', emoji: '⭐', speed: 0.70, luck: 0.30 }
 ];
-
-// Active races per channel
 const activeRaces = new Map();
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('race')
@@ -31,21 +26,17 @@ module.exports = {
         .addSubcommand(sub =>
             sub.setName('start').setDescription('Start the race (admin only)')
         ),
-
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
         const userId = interaction.user.id;
         const channelId = interaction.channelId;
         await ensureUser(userId);
-
         if (sub === 'odds') {
             const embed = new EmbedBuilder()
                 .setTitle('🏇 Horse Racing - Current Odds')
                 .setColor(CONSTANTS.COLOR_INFO)
                 .setDescription('Place your bets with `/race bet <horse> <amount>`!');
-
             HORSES.forEach((horse, i) => {
-                // Odds based on speed (higher speed = lower payout)
                 const odds = (2 / horse.speed).toFixed(1);
                 embed.addFields({
                     name: `#${i + 1} ${horse.emoji} ${horse.name}`,
@@ -53,61 +44,46 @@ module.exports = {
                     inline: true
                 });
             });
-
             return interaction.reply({ embeds: [embed] });
         }
-
         if (sub === 'bet') {
             const hasOverdue = await hasOverdueLoan(userId);
             if (hasOverdue) {
                 return interaction.reply({ content: '❌ You have overdue loans!', ephemeral: true });
             }
-
             const horseNum = interaction.options.getInteger('horse');
             const amount = interaction.options.getInteger('amount');
             const horse = HORSES[horseNum - 1];
-
             if (!horse) {
                 return interaction.reply({ content: '❌ Invalid horse number!', ephemeral: true });
             }
-
-            // Check balance
             const userRes = await query('SELECT balance FROM users WHERE id = $1', [userId]);
             const balance = parseInt(userRes.rows[0]?.balance || 0);
-
             if (balance < amount) {
                 return interaction.reply({ content: `❌ Insufficient funds.`, ephemeral: true });
             }
-
-            // Get or create race
             let race = activeRaces.get(channelId);
             if (!race) {
                 race = { bets: new Map(), started: false };
                 activeRaces.set(channelId, race);
             }
-
             if (race.started) {
                 return interaction.reply({ content: '❌ Race already started! Wait for the next one.', ephemeral: true });
             }
-
-            // Deduct and place bet atomically (SECURITY FIX: prevent loss if server crashes)
             try {
                 await withTransaction(async (client) => {
                     const result = await client.query(
                         'UPDATE users SET balance = balance - $1 WHERE id = $2 AND balance >= $1 RETURNING balance',
                         [amount, userId]
                     );
-
                     if (result.rowCount === 0) {
                         throw new Error('INSUFFICIENT_FUNDS');
                     }
                 });
-
                 if (!race.bets.has(userId)) {
                     race.bets.set(userId, []);
                 }
                 race.bets.get(userId).push({ horseNum, amount, username: interaction.user.username });
-
                 return interaction.reply({
                     content: `✅ Bet **$${amount.toLocaleString()}** on **#${horseNum} ${horse.emoji} ${horse.name}**!`,
                     ephemeral: true
@@ -121,26 +97,19 @@ module.exports = {
                 throw error;
             }
         }
-
         if (sub === 'start') {
-            // Check admin permission
             if (!interaction.member.permissions.has('Administrator')) {
                 return interaction.reply({ content: '❌ Only administrators can start races.', ephemeral: true });
             }
-
             let race = activeRaces.get(channelId);
             if (!race || race.bets.size === 0) {
                 return interaction.reply({ content: '❌ No bets placed yet!', ephemeral: true });
             }
-
             if (race.started) {
                 return interaction.reply({ content: '❌ Race already in progress!', ephemeral: true });
             }
-
             race.started = true;
             await interaction.deferReply();
-
-            // Simulate race
             setTimeout(async () => {
                 try {
                     const positions = HORSES.map((horse, i) => ({
@@ -148,38 +117,24 @@ module.exports = {
                         num: i + 1,
                         progress: 0
                     }));
-
                     const frames = [];
-
-                    const raceTicks = []; // Store progress for each tick
-
-                    // 1. Simulate entire race first (FIX #18: use constants)
+                    const raceTicks = []; 
                     for (let tick = 0; tick < CONSTANTS.HORSE_RACE_TICKS; tick++) {
                         positions.forEach(p => {
-                            // Variance and events
                             const speedVariance = 0.5 + Math.random() * 0.5;
                             const luckBoost = Math.random() < p.luck ? (0.2 + Math.random() * 0.4) : 0;
                             const randomEvent = Math.random();
                             let eventModifier = 0;
-
-                            if (randomEvent < CONSTANTS.HORSE_STUMBLE_CHANCE) eventModifier = CONSTANTS.HORSE_STUMBLE_PENALTY; // Stumble
-                            else if (randomEvent < CONSTANTS.HORSE_SURGE_CHANCE) eventModifier = CONSTANTS.HORSE_SURGE_BONUS; // Surge
-
+                            if (randomEvent < CONSTANTS.HORSE_STUMBLE_CHANCE) eventModifier = CONSTANTS.HORSE_STUMBLE_PENALTY; 
+                            else if (randomEvent < CONSTANTS.HORSE_SURGE_CHANCE) eventModifier = CONSTANTS.HORSE_SURGE_BONUS; 
                             p.progress += p.speed * speedVariance + luckBoost + eventModifier;
                             if (p.progress < 0) p.progress = 0;
                         });
-
-                        // Snapshot current progress for all horses
                         raceTicks.push(positions.map(p => ({ ...p })));
                     }
-
-                    // 2. Determine winner and final distance
                     const finalStandings = [...positions].sort((a, b) => b.progress - a.progress);
                     const winner = finalStandings[0];
-                    const winningDistance = winner.progress; // The distance to reach 100%
-
-                    // 3. Generate frames based on simulation
-                    // Add starting frames
+                    const winningDistance = winner.progress; 
                     for (let i = 0; i < 10; i++) {
                         frames.push({
                             horses: HORSES.map((h, idx) => ({ ...h, num: idx + 1, position: 0 })),
@@ -187,26 +142,20 @@ module.exports = {
                             showPodium: false
                         });
                     }
-
-                    // Add race frames
                     raceTicks.forEach((tickPositions, index) => {
                         frames.push({
                             horses: tickPositions.map(p => ({
                                 ...p,
-                                // Normalize against winning distance so winner hits 100% exactly at end
                                 position: Math.min(100, (p.progress / winningDistance) * 100)
                             })),
                             status: index < 70 ? 'Racing...' : 'Final stretch!',
                             showPodium: false
                         });
                     });
-
-                    // 4. Add podium frames (winner is already determined)
                     const podiumHorses = finalStandings.map(p => ({
                         ...p,
                         position: Math.min(100, (p.progress / winningDistance) * 100)
                     }));
-
                     for (let i = 0; i < 50; i++) {
                         frames.push({
                             horses: podiumHorses,
@@ -214,15 +163,10 @@ module.exports = {
                             showPodium: true
                         });
                     }
-
-                    // Generate GIF
                     const gifBuffer = await canvasRenderer.createHorseRaceGif(frames);
                     const attachment = new AttachmentBuilder(gifBuffer, { name: 'race.gif' });
-
-                    // Calculate payouts
                     const odds = 2 / winner.speed;
                     let results = '**Payouts:**\n';
-
                     for (const [uid, userBets] of race.bets) {
                         for (const bet of userBets) {
                             if (bet.horseNum === winner.num) {
@@ -234,15 +178,11 @@ module.exports = {
                             }
                         }
                     }
-
                     const embed = new EmbedBuilder()
                         .setTitle(`🏆 Winner: ${winner.emoji} ${winner.name}!`)
                         .setDescription(results)
                         .setColor(CONSTANTS.COLOR_SUCCESS);
-
                     await interaction.editReply({ embeds: [embed], files: [attachment] });
-
-                    // Clean up
                     activeRaces.delete(channelId);
                 } catch (error) {
                     console.error('[HorseRace] Error:', error);
@@ -253,4 +193,3 @@ module.exports = {
         }
     }
 };
-

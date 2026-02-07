@@ -1,9 +1,8 @@
 const { EmbedBuilder } = require('discord.js');
 const CONSTANTS = require('../../config/constants');
 const channelId = process.env.CHANNEL_ID;
-
 async function sendLogEmbed(client, description, color, retries = CONSTANTS.MAX_RETRY_ATTEMPTS) {
-    if (!channelId) return; // No log channel configured
+    if (!channelId) return; 
     try {
         const channel = await client.channels.fetch(channelId);
         if (channel && channel.isTextBased()) {
@@ -20,5 +19,4 @@ async function sendLogEmbed(client, description, color, retries = CONSTANTS.MAX_
         console.error('[DiscordMessage] Failed to send embed:', error);
     }
 }
-
 module.exports = { sendLogEmbed };

@@ -4,7 +4,6 @@ try {
     console.error("❌ Dependencies not found. Please run 'npm install' manually before starting the bot.");
     process.exit(1);
 }
-
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { validateEnvironment } = require('./config/validator');
@@ -16,7 +15,6 @@ const { initErrorHandlers } = require('./src/utils/errorHandler');
 const { startScheduledBackups } = require('./src/utils/backup');
 const { startBankAI } = require('./src/ai/bankAI');
 const guildEvents = require('./src/handlers/guildEvents');
-
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -26,9 +24,7 @@ const client = new Client({
         GatewayIntentBits.GuildVoiceStates
     ]
 });
-
 client.commands = new Collection();
-
 async function gracefulShutdown() {
     console.log('Shutting down...');
     try {
@@ -41,17 +37,10 @@ async function gracefulShutdown() {
         process.exit(1);
     }
 }
-
-// Main startup function
 (async () => {
     try {
-        // SECURITY FIX: Validate environment before startup
         validateEnvironment();
-
         await initDatabase();
-        // REMOVED: Work cooldown reset (was allowing unlimited work by restarting bot)
-        // await pool.query('UPDATE users SET last_work = NULL');
-
         commandHandler(client);
         eventHandler(client);
         botHandler(client);
@@ -59,7 +48,6 @@ async function gracefulShutdown() {
         initErrorHandlers(client);
         startScheduledBackups(client);
         startBankAI();
-
         const discordToken = process.env.DISCORD_TOKEN;
         await client.login(discordToken);
     } catch (error) {
@@ -67,7 +55,5 @@ async function gracefulShutdown() {
         process.exit(1);
     }
 })();
-
 process.on('SIGINT', () => gracefulShutdown());
 process.on('SIGTERM', () => gracefulShutdown());
-
