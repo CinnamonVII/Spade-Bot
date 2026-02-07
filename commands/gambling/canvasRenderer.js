@@ -2,7 +2,7 @@ const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const GifEncoder = require('gif-encoder-2');
 
 const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 600;
+const CANVAS_HEIGHT = 700;
 
 const SYMBOL_SIZE = 80;
 const REEL_X_START = 220;
@@ -300,8 +300,11 @@ module.exports = {
         };
 
         const drawBackground = () => {
+            // Horizon line where track starts
+            const horizonY = 200;
+
             // Sky
-            const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT / 2);
+            const gradient = ctx.createLinearGradient(0, 0, 0, horizonY);
             gradient.addColorStop(0, COLORS.SKY_TOP);
             gradient.addColorStop(1, COLORS.SKY_BOTTOM);
             ctx.fillStyle = gradient;
@@ -309,7 +312,7 @@ module.exports = {
 
             // Pixelated Mountains
             ctx.fillStyle = '#654053'; // Dark retro purple
-            const mountainBase = CANVAS_HEIGHT / 2;
+            const mountainBase = horizonY;
 
             // Draw simple blocky mountains
             const mountains = [
@@ -326,9 +329,9 @@ module.exports = {
                 ctx.fill();
             });
 
-            // Ground
+            // Ground (behind track)
             ctx.fillStyle = COLORS.GRASS;
-            ctx.fillRect(0, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT / 2);
+            ctx.fillRect(0, horizonY, CANVAS_WIDTH, CANVAS_HEIGHT - horizonY);
         };
 
         let frameCounter = 0;
@@ -391,7 +394,7 @@ module.exports = {
                 // --- RACE VIEW ---
                 drawBackground();
 
-                const trackY = CANVAS_HEIGHT / 2 + 30;
+                const trackY = 200; // Fixed start point for track
                 const trackHeight = 320;
 
                 // Draw Dirt Track
@@ -429,18 +432,25 @@ module.exports = {
 
 
                 // --- HORSES & FINISH LINE ---
-                // Mapping: 0% -> 50px, 100% -> 650px (Finish line)
+                // Mapping: 0% -> 50px, 100% -> 750px (Finish line at the nose)
                 const startX = 50;
-                const endX = 650;
+                const endX = 750;
                 const raceWidth = endX - startX;
 
                 // Draw Finish Line if applicable
-                // It should be at x = 650
+                // It should be at x = 750
                 drawFinishLine(endX);
 
                 frame.horses.forEach((horse, idx) => {
                     const progress = horse.position / 100;
-                    const x = startX + (progress * raceWidth);
+
+                    // The 'x' position calculated is where the NOSE of the horse should be
+                    const noseX = startX + (progress * raceWidth);
+
+                    // Sprite drawing position is noseX minus width (64)
+                    // This ensures at 100%, the nose touches the line, not the tail.
+                    const x = noseX - 64;
+
                     const y = trackY + (idx * laneHeight) // Top of lane
                         + (laneHeight - 64) / 2;      // Center vertically in lane (64 is sprite size)
 
@@ -483,15 +493,16 @@ module.exports = {
                 ctx.fillRect(52, 42, (CANVAS_WIDTH - 104) * leaderPct, 16);
 
                 // Red line indicator for the leading horse (Pixel art style)
-                const leaderX = startX + (leader.position / 100) * raceWidth;
+                // Used nose X position
+                const leaderNoseX = startX + (leader.position / 100) * raceWidth;
 
                 // White border for visibility
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(leaderX + 66, trackY - 2, 16, trackHeight + 4);
+                ctx.fillRect(leaderNoseX + 2, trackY - 2, 16, trackHeight + 4);
 
                 // Red center
                 ctx.fillStyle = '#ff0000';
-                ctx.fillRect(leaderX + 68, trackY, 12, trackHeight);
+                ctx.fillRect(leaderNoseX + 4, trackY, 12, trackHeight);
 
                 // Text status
                 ctx.fillStyle = '#fff';

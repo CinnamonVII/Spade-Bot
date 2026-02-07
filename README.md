@@ -16,8 +16,7 @@ You need to install:
 
 
 # What comes next?
-1. Shop fixes
-2. XP fixes
+1. Horse race fix
 3. Better stock market
 4. Better gambling
 5. Better everything
