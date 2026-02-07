@@ -7,7 +7,6 @@ node_modules
 coverage/
 :memory:
 
-# Ignore all markdown files by default
+
 *.md
-# But allow the main README
 !README.md
