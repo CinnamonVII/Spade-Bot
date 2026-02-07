@@ -16,7 +16,6 @@ You need to install:
 
 
 # What comes next?
-1. Horse race fix
 2. Better stock market
 3. Better gambling
 4. Website to promote the project

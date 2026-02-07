@@ -118,15 +118,15 @@ module.exports = {
                         progress: 0
                     }));
                     const frames = [];
-                    const raceTicks = []; 
+                    const raceTicks = [];
                     for (let tick = 0; tick < CONSTANTS.HORSE_RACE_TICKS; tick++) {
                         positions.forEach(p => {
                             const speedVariance = 0.5 + Math.random() * 0.5;
                             const luckBoost = Math.random() < p.luck ? (0.2 + Math.random() * 0.4) : 0;
                             const randomEvent = Math.random();
                             let eventModifier = 0;
-                            if (randomEvent < CONSTANTS.HORSE_STUMBLE_CHANCE) eventModifier = CONSTANTS.HORSE_STUMBLE_PENALTY; 
-                            else if (randomEvent < CONSTANTS.HORSE_SURGE_CHANCE) eventModifier = CONSTANTS.HORSE_SURGE_BONUS; 
+                            if (randomEvent < CONSTANTS.HORSE_STUMBLE_CHANCE) eventModifier = CONSTANTS.HORSE_STUMBLE_PENALTY;
+                            else if (randomEvent < CONSTANTS.HORSE_SURGE_CHANCE) eventModifier = CONSTANTS.HORSE_SURGE_BONUS;
                             p.progress += p.speed * speedVariance + luckBoost + eventModifier;
                             if (p.progress < 0) p.progress = 0;
                         });
@@ -134,7 +134,7 @@ module.exports = {
                     }
                     const finalStandings = [...positions].sort((a, b) => b.progress - a.progress);
                     const winner = finalStandings[0];
-                    const winningDistance = winner.progress; 
+                    const winningDistance = winner.progress;
                     for (let i = 0; i < 10; i++) {
                         frames.push({
                             horses: HORSES.map((h, idx) => ({ ...h, num: idx + 1, position: 0 })),
@@ -170,7 +170,13 @@ module.exports = {
                     for (const [uid, userBets] of race.bets) {
                         for (const bet of userBets) {
                             if (bet.horseNum === winner.num) {
-                                const payout = Math.floor(bet.amount * odds);
+                                let payoutMultiplier = odds; // Default odds
+
+                                // Specific multipliers as requested
+                                if (bet.horseNum === 2) payoutMultiplier = 1.1;
+                                if (bet.horseNum === 3) payoutMultiplier = 0.5;
+
+                                const payout = Math.floor(bet.amount * payoutMultiplier);
                                 await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [payout, uid]);
                                 results += `✅ ${bet.username}: Won **$${payout.toLocaleString()}**!\n`;
                             } else {
