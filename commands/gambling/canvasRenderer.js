@@ -138,9 +138,9 @@ module.exports = {
         const ctx = canvas.getContext('2d');
         await preloadSymbols(frames);
         encoder.start();
-        encoder.setRepeat(0); 
-        encoder.setDelay(33); 
-        encoder.setQuality(10); 
+        encoder.setRepeat(0);
+        encoder.setDelay(33);
+        encoder.setQuality(10);
         for (const frame of frames) {
             drawFrame(ctx, frame.reels, frame.status, frame.user, frame.topBottom);
             encoder.addFrame(ctx);
@@ -154,7 +154,7 @@ module.exports = {
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
         ctx.patternQuality = 'fast';
-        ctx.textDrawingMode = 'glyph'; 
+        ctx.textDrawingMode = 'glyph';
         const horseEmojis = new Set(['🏁']);
         frames.forEach(frame => {
             frame.horses?.forEach(h => horseEmojis.add(h.emoji));
@@ -165,10 +165,10 @@ module.exports = {
         encoder.setDelay(100);
         encoder.setQuality(10);
         const COLORS = {
-            SKY_TOP: '#3b86ff',     
+            SKY_TOP: '#3b86ff',
             SKY_BOTTOM: '#87cefa',
-            GRASS: '#38b764',       
-            DIRT: '#a05b35',        
+            GRASS: '#38b764',
+            DIRT: '#a05b35',
             DIRT_DARK: '#7a4427',
             FENCE: '#ffffff',
             FENCE_SHADOW: '#a9a9a9',
@@ -178,9 +178,9 @@ module.exports = {
         };
         const drawPixelatedLine = (x1, y1, x2, y2, color, thickness) => {
             ctx.fillStyle = color;
-            if (x1 === x2) { 
+            if (x1 === x2) {
                 ctx.fillRect(x1 - thickness / 2, Math.min(y1, y2), thickness, Math.abs(y2 - y1));
-            } else if (y1 === y2) { 
+            } else if (y1 === y2) {
                 ctx.fillRect(Math.min(x1, x2), y1 - thickness / 2, Math.abs(x2 - x1), thickness);
             } else {
                 ctx.beginPath();
@@ -191,36 +191,30 @@ module.exports = {
                 ctx.stroke();
             }
         };
-        const drawFinishLine = (x) => {
-            const trackTop = CANVAS_HEIGHT / 2 + 30;
-            const trackHeight = 250;
-            const trackBottom = trackTop + trackHeight;
-            const postWidth = 10;
+        const drawFinishLine = (x, trackY, trackHeight) => {
+            const postWidth = 8;
             ctx.fillStyle = '#555';
-            ctx.fillRect(x - 5, trackTop - 60, postWidth, trackHeight + 60);
-            const bannerY = trackTop - 60;
+            ctx.fillRect(x - 4, trackY - 60, postWidth, trackHeight + 60);
+            const bannerY = trackY - 60;
             const bannerHeight = 40;
             const checkSize = 20;
-            ctx.fillStyle = '#000'; 
-            const bannerWidth = 30;
-            ctx.fillRect(x - 15, bannerY - 5, bannerWidth, bannerHeight + 10);
-            for (let r = 0; r < 2; r++) { 
-                for (let c = 0; c < 1; c++) { 
+            ctx.fillStyle = '#222';
+            const bannerWidth = 24;
+            ctx.fillRect(x - 12, bannerY - 5, bannerWidth, bannerHeight + 10);
+            for (let r = 0; r < 2; r++) {
+                for (let c = 0; c < 1; c++) {
                     const cy = bannerY + (r * checkSize);
                     ctx.fillStyle = ((r + c) % 2 === 0) ? '#fff' : '#000';
                     ctx.fillRect(x - 10, cy, 20, checkSize);
                 }
             }
-            const stripWidth = 20;
-            const numChecks = 10;
+            const stripWidth = 4;
+            const numChecks = Math.floor(trackHeight / 25);
             const checkHeight = trackHeight / numChecks;
-            const startX = x - 10; 
             for (let i = 0; i < numChecks; i++) {
-                const cy = trackTop + (i * checkHeight);
+                const cy = trackY + (i * checkHeight);
                 ctx.fillStyle = (i % 2 === 0) ? '#fff' : '#000';
-                ctx.fillRect(startX, cy, stripWidth / 2, checkHeight);
-                ctx.fillStyle = (i % 2 !== 0) ? '#fff' : '#000';
-                ctx.fillRect(startX + stripWidth / 2, cy, stripWidth / 2, checkHeight);
+                ctx.fillRect(x - 2, cy, stripWidth, checkHeight);
             }
         };
         const drawBackground = () => {
@@ -230,7 +224,7 @@ module.exports = {
             gradient.addColorStop(1, COLORS.SKY_BOTTOM);
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-            ctx.fillStyle = '#654053'; 
+            ctx.fillStyle = '#654053';
             const mountainBase = horizonY;
             const mountains = [
                 { x: 50, w: 200, h: 100 },
@@ -251,47 +245,90 @@ module.exports = {
         for (const frame of frames) {
             frameCounter++;
             if (frame.showPodium) {
-                ctx.fillStyle = COLORS.UI_BG;
+                const bgGradient = ctx.createRadialGradient(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 0, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 500);
+                bgGradient.addColorStop(0, '#3d2f5a');
+                bgGradient.addColorStop(1, '#1a1428');
+                ctx.fillStyle = bgGradient;
                 ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                for (let i = 0; i < 50; i++) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.8})`;
+                    const x = Math.random() * CANVAS_WIDTH;
+                    const y = Math.random() * CANVAS_HEIGHT;
+                    const size = Math.random() * 3;
+                    ctx.fillRect(x, y, size, size);
+                }
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 4;
+                ctx.strokeText('🏆 RACE RESULTS 🏆', CANVAS_WIDTH / 2, 60);
                 ctx.fillStyle = '#ffd700';
-                ctx.font = 'bold 36px "Courier New", monospace'; 
+                ctx.font = 'bold 40px "Courier New", monospace';
                 ctx.textAlign = 'center';
                 ctx.fillText('🏆 RACE RESULTS 🏆', CANVAS_WIDTH / 2, 60);
                 const podiumConfig = [
-                    { rank: 1, x: 300, height: 160, color: '#ffd700', label: '1ST' },
-                    { rank: 2, x: 140, height: 120, color: '#c0c0c0', label: '2ND' },
-                    { rank: 3, x: 460, height: 90, color: '#cd7f32', label: '3RD' }
+                    { rank: 1, x: 300, height: 180, color: '#ffd700', secondColor: '#ffed4e', label: '1ST', glow: '#ffff00' },
+                    { rank: 2, x: 120, height: 140, color: '#c0c0c0', secondColor: '#e8e8e8', label: '2ND', glow: '#ffffff' },
+                    { rank: 3, x: 480, height: 100, color: '#cd7f32', secondColor: '#e8a87c', label: '3RD', glow: '#ff9955' }
                 ];
-                podiumConfig.forEach(({ rank, x, height, color, label }) => {
-                    const y = 350 - height;
+                podiumConfig.forEach(({ rank, x, height, color, secondColor, label, glow }) => {
+                    const y = 400 - height;
                     const horse = frame.horses[rank - 1];
                     if (!horse) return;
-                    ctx.fillStyle = color;
+                    ctx.shadowColor = glow;
+                    ctx.shadowBlur = rank === 1 ? 20 : 10;
+                    const gradient = ctx.createLinearGradient(x, y, x, y + height);
+                    gradient.addColorStop(0, secondColor);
+                    gradient.addColorStop(1, color);
+                    ctx.fillStyle = gradient;
                     ctx.fillRect(x, y, 100, height);
-                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                    ctx.fillRect(x + 100, y + 10, 10, height - 10);
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                    ctx.fillRect(x + 100, y + 10, 12, height - 10);
                     ctx.fillRect(x + 10, y - 10, 100, 10);
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    ctx.fillRect(x + 5, y + 5, 30, height - 10);
                     ctx.fillStyle = '#000';
-                    ctx.font = 'bold 24px "Courier New", monospace';
-                    ctx.fillText(label, x + 50, y + height - 20);
+                    ctx.font = 'bold 28px "Courier New", monospace';
+                    ctx.fillText(label, x + 50, y + height - 15);
                     const horseImg = imageCache[horse.emoji];
-                    if (horseImg) ctx.drawImage(horseImg, x + 20, y - 80, 60, 60);
+                    if (horseImg) {
+                        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                        ctx.shadowBlur = 10;
+                        ctx.drawImage(horseImg, x + 20, y - 90, 60, 60);
+                        ctx.shadowBlur = 0;
+                    }
+                    if (rank === 1) {
+                        for (let i = 0; i < 8; i++) {
+                            const angle = (frameCounter * 0.1 + i * Math.PI / 4);
+                            const sparkleX = x + 50 + Math.cos(angle) * 70;
+                            const sparkleY = y - 50 + Math.sin(angle) * 70;
+                            ctx.fillStyle = '#ffff00';
+                            ctx.fillRect(sparkleX - 2, sparkleY - 2, 4, 4);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(sparkleX - 1, sparkleY - 1, 2, 2);
+                        }
+                    }
                     ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 16px "Courier New", monospace';
-                    ctx.fillText(`#${horse.num}`, x + 50, y - 90);
+                    ctx.font = 'bold 18px "Courier New", monospace';
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    ctx.strokeText(`#${horse.num} ${horse.name}`, x + 50, y - 100);
+                    ctx.fillText(`#${horse.num} ${horse.name}`, x + 50, y - 100);
                 });
                 ctx.fillStyle = '#fff';
-                ctx.font = '20px "Courier New", monospace';
+                ctx.font = '24px "Courier New", monospace';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                ctx.strokeText("Race Complete!", CANVAS_WIDTH / 2, CANVAS_HEIGHT - 30);
                 ctx.fillText("Race Complete!", CANVAS_WIDTH / 2, CANVAS_HEIGHT - 30);
             } else {
                 drawBackground();
-                const trackY = 200; 
+                const trackY = 200;
                 const trackHeight = 320;
                 ctx.fillStyle = COLORS.DIRT;
                 ctx.fillRect(0, trackY, CANVAS_WIDTH, trackHeight);
                 ctx.fillStyle = COLORS.DIRT_DARK;
-                ctx.fillRect(0, trackY - 5, CANVAS_WIDTH, 5); 
-                ctx.fillRect(0, trackY + trackHeight, CANVAS_WIDTH, 5); 
+                ctx.fillRect(0, trackY - 5, CANVAS_WIDTH, 5);
+                ctx.fillRect(0, trackY + trackHeight, CANVAS_WIDTH, 5);
                 const laneHeight = trackHeight / 5;
                 for (let i = 1; i < 5; i++) {
                     const y = trackY + (i * laneHeight);
@@ -311,21 +348,21 @@ module.exports = {
                 const startX = 50;
                 const endX = 750;
                 const raceWidth = endX - startX;
-                drawFinishLine(endX);
+                drawFinishLine(endX, trackY, trackHeight);
                 frame.horses.forEach((horse, idx) => {
                     const progress = horse.position / 100;
                     const noseX = startX + (progress * raceWidth);
                     const x = noseX - 64;
-                    const y = trackY + (idx * laneHeight) 
-                        + (laneHeight - 64) / 2;      
-                    const bob = (frameCounter + idx) % 4 < 2 ? 0 : 4; 
+                    const y = trackY + (idx * laneHeight)
+                        + (laneHeight - 64) / 2;
+                    const bob = (frameCounter + idx) % 4 < 2 ? 0 : 4;
                     ctx.fillStyle = 'rgba(0,0,0,0.4)';
                     ctx.fillRect(x + 10, y + 54, 44, 6);
                     const horseImg = imageCache[horse.emoji];
                     if (horseImg) {
                         ctx.drawImage(horseImg, x, y + bob, 64, 64);
                     }
-                    ctx.fillStyle = '#ff0000'; 
+                    ctx.fillStyle = '#ff0000';
                     ctx.fillRect(x + 5, y + bob + 5, 20, 20);
                     ctx.strokeStyle = '#fff';
                     ctx.strokeRect(x + 5, y + bob + 5, 20, 20);

@@ -17,11 +17,11 @@ You need to install:
 
 # What comes next?
 1. Horse race fix
-3. Better stock market
-4. Better gambling
-5. Website to promote the project
-6. Better everything
-7. Enhanced aternos connection
+2. Better stock market
+3. Better gambling
+4. Website to promote the project
+5. Better everything
+6. Enhanced aternos connection
 8. Steam integration
 9. New games like not gambling, directly like maybne hytale or smthg
 10. Cool stuff
