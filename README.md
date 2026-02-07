@@ -16,9 +16,13 @@ You need to install:
 
 
 # What comes next?
-1. Windows
-2. Nice stuff
-3. Non vibe coded frontend (hopefully)
+1. Shop fixes
+2. Better stock market
+3. Better gambling
+4. Better everything
+5. Enhanced aternos connection
+6. Steam integration
+7. New games like not gambling, directly like maybne hytale or smthg
 
 
 # Warnings
