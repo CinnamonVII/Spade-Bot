@@ -22,7 +22,7 @@ module.exports = {
             .setTimestamp();
 
         if (subcommand === 'xp') {
-            const topUsers = getXpLeaderboard(10);
+            const topUsers = await getXpLeaderboard(10);
             embed.setTitle('🏆 XP Leaderboard');
 
             let desc = '';

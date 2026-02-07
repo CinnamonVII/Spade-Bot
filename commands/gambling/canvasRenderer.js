@@ -392,7 +392,7 @@ module.exports = {
                 drawBackground();
 
                 const trackY = CANVAS_HEIGHT / 2 + 30;
-                const trackHeight = 250;
+                const trackHeight = 320;
 
                 // Draw Dirt Track
                 ctx.fillStyle = COLORS.DIRT;
@@ -481,6 +481,11 @@ module.exports = {
 
                 ctx.fillStyle = '#00ff00';
                 ctx.fillRect(52, 42, (CANVAS_WIDTH - 104) * leaderPct, 16);
+
+                // Red line indicator for the leading horse
+                const leaderX = startX + (leader.position / 100) * raceWidth;
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(leaderX + 68, trackY, 4, trackHeight);
 
                 // Text status
                 ctx.fillStyle = '#fff';
