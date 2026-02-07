@@ -15,10 +15,10 @@ module.exports = {
 
 
         const invRes = await query('SELECT amount FROM user_items WHERE user_id = $1 AND item_id = $2', [userId, itemId]);
-        const inventoryItem = invRes.rows[0];
+        const userItem = invRes.rows[0];
 
-        if (!inventoryItem || inventoryItem.amount < 1) {
-            return interaction.reply({ content: '❌ You do not own this item!', ephemeral: true });
+        if (!userItem || userItem.amount < 1) {
+            return interaction.reply({ content: '❌ You do not own this item.', ephemeral: true });
         }
 
 

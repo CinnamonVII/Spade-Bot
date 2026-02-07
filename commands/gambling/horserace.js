@@ -90,18 +90,36 @@ module.exports = {
                 return interaction.reply({ content: '❌ Race already started! Wait for the next one.', ephemeral: true });
             }
 
-            // Deduct and place bet
-            await query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, userId]);
+            // Deduct and place bet atomically (SECURITY FIX: prevent loss if server crashes)
+            try {
+                await withTransaction(async (client) => {
+                    const result = await client.query(
+                        'UPDATE users SET balance = balance - $1 WHERE id = $2 AND balance >= $1 RETURNING balance',
+                        [amount, userId]
+                    );
 
-            if (!race.bets.has(userId)) {
-                race.bets.set(userId, []);
+                    if (result.rowCount === 0) {
+                        throw new Error('INSUFFICIENT_FUNDS');
+                    }
+                });
+
+                if (!race.bets.has(userId)) {
+                    race.bets.set(userId, []);
+                }
+                race.bets.get(userId).push({ horseNum, amount, username: interaction.user.username });
+
+                return interaction.reply({
+                    content: `✅ Bet **$${amount.toLocaleString()}** on **#${horseNum} ${horse.emoji} ${horse.name}**!`,
+                    ephemeral: true
+                });
+            } catch (error) {
+                if (error.message === 'INSUFFICIENT_FUNDS') {
+                    const actualBalance = await query('SELECT balance FROM users WHERE id = $1', [userId]);
+                    const currentBalance = parseInt(actualBalance.rows[0]?.balance || 0);
+                    return interaction.reply({ content: `❌ Insufficient funds. You have **$${currentBalance.toLocaleString()}**.`, ephemeral: true });
+                }
+                throw error;
             }
-            race.bets.get(userId).push({ horseNum, amount, username: interaction.user.username });
-
-            return interaction.reply({
-                content: `✅ Bet **$${amount.toLocaleString()}** on **#${horseNum} ${horse.emoji} ${horse.name}**!`,
-                ephemeral: true
-            });
         }
 
         if (sub === 'start') {
@@ -135,8 +153,8 @@ module.exports = {
 
                     const raceTicks = []; // Store progress for each tick
 
-                    // 1. Simulate entire race first
-                    for (let tick = 0; tick < 80; tick++) {
+                    // 1. Simulate entire race first (FIX #18: use constants)
+                    for (let tick = 0; tick < CONSTANTS.HORSE_RACE_TICKS; tick++) {
                         positions.forEach(p => {
                             // Variance and events
                             const speedVariance = 0.5 + Math.random() * 0.5;
@@ -144,8 +162,8 @@ module.exports = {
                             const randomEvent = Math.random();
                             let eventModifier = 0;
 
-                            if (randomEvent < 0.05) eventModifier = -0.5; // Stumble
-                            else if (randomEvent < 0.1) eventModifier = 0.8; // Surge
+                            if (randomEvent < CONSTANTS.HORSE_STUMBLE_CHANCE) eventModifier = CONSTANTS.HORSE_STUMBLE_PENALTY; // Stumble
+                            else if (randomEvent < CONSTANTS.HORSE_SURGE_CHANCE) eventModifier = CONSTANTS.HORSE_SURGE_BONUS; // Surge
 
                             p.progress += p.speed * speedVariance + luckBoost + eventModifier;
                             if (p.progress < 0) p.progress = 0;

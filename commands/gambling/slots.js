@@ -34,7 +34,7 @@ module.exports = {
                         name: '🇬🇧 English',
                         value: '1. **Objective**: Spin the reels and match symbols on the middle row (payline).\n' +
                             '2. **Triple**: 3 matching symbols pay **15x** your bet.\n' +
-                            '3. **Mega Jackpot**: 3 7️⃣ symbols pay **75x** your bet.\n' +
+                            '3. **Jackpot**: 3 7️⃣ symbols pay **75x** your bet.\n' +
                             '4. **Pair**: 2 matching symbols pay **1.5x** your bet.\n' +
                             '5. **Animation**: The reels reveal in Left -> Right -> Center order with a suspense phase if the first and third matches!'
                     },
@@ -42,7 +42,7 @@ module.exports = {
                         name: '🇫🇷 Français',
                         value: '1. **Objectif** : Faites tourner les rouleaux et alignez des symboles sur la ligne du milieu.\n' +
                             '2. **Triple** : 3 symboles identiques paient **15x** votre mise.\n' +
-                            '3. **Mega Jackpot** : 3 symboles 7️⃣ paient **75x** votre mise.\n' +
+                            '3. **Jackpot** : 3 symboles 7️⃣ paient **75x** votre mise.\n' +
                             '4. **Paire** : 2 symboles identiques paient **1.5x** votre mise.\n' +
                             '5. **Animation** : Les rouleaux se révèlent dans l\'ordre Gauche -> Droite -> Centre avec une phase de suspense si le premier et le troisième correspondent !'
                     }
@@ -153,15 +153,7 @@ module.exports = {
 
                 const addFrames = (count, status) => {
                     for (let i = 0; i < count; i++) {
-
-
-                        const isLocked = (idx) => {
-
-
-
-                            return false;
-                        };
-
+                        // REMOVED: Dead code - isLocked function was never used
 
                         frames.push({
                             reels: [...currentRows.mid],

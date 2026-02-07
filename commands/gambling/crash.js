@@ -76,10 +76,10 @@ module.exports = {
             }
 
             // Deduct balance and add bet atomically
-            // SECURITY FIX: Use database lock to prevent double-betting (VULN-005)
+            // SECURITY FIX: Use database lock to prevent double-betting and race conditions
             try {
                 await withTransaction(async (client) => {
-                    // Lock user row and deduct balance atomically
+                    // Lock user row and deduct balance atomically - validates balance at deduction time
                     const result = await client.query(
                         'UPDATE users SET balance = balance - $1 WHERE id = $2 AND balance >= $1 RETURNING balance',
                         [amount, userId]
@@ -94,7 +94,10 @@ module.exports = {
                 return interaction.reply({ content: `✅ Bet placed: **$${amount.toLocaleString()}**. Use \`/crash cashout\` to cash out!`, ephemeral: true });
             } catch (error) {
                 if (error.message === 'INSUFFICIENT_FUNDS') {
-                    return interaction.reply({ content: `❌ Insufficient funds. You have **$${balance.toLocaleString()}**.`, ephemeral: true });
+                    // Re-fetch actual balance for accurate error message
+                    const actualBalance = await query('SELECT balance FROM users WHERE id = $1', [userId]);
+                    const currentBalance = parseInt(actualBalance.rows[0]?.balance || 0);
+                    return interaction.reply({ content: `❌ Insufficient funds. You have **$${currentBalance.toLocaleString()}**.`, ephemeral: true });
                 }
                 throw error;
             }
@@ -116,18 +119,19 @@ module.exports = {
             }
 
             // Cash out with database lock to prevent double cashout
-            // SECURITY FIX: Atomic cashout operation (VULN-005)
+            // NOTE: In-memory flag provides basic protection. For production systems with
+            // multiple instances, consider storing active bets in database with a cashed_out column.
             try {
+                // Check and set flag atomically (for single-instance protection)
+                if (bet.cashedOut) {
+                    return interaction.reply({ content: '❌ You already cashed out!', ephemeral: true });
+                }
+
+                // Set flag IMMEDIATELY to prevent concurrent cashout attempts
+                bet.cashedOut = true;
+                bet.cashoutMultiplier = game.multiplier;
+
                 const payout = await withTransaction(async (client) => {
-                    // Re-check bet status inside transaction
-                    if (bet.cashedOut) {
-                        throw new Error('ALREADY_CASHED_OUT');
-                    }
-
-                    // Set flag FIRST before any DB operations
-                    bet.cashedOut = true;
-                    bet.cashoutMultiplier = game.multiplier;
-
                     const payoutAmount = Math.floor(bet.amount * game.multiplier);
 
                     // Update balance atomically
@@ -138,10 +142,11 @@ module.exports = {
 
                 return interaction.reply({ content: `💰 Cashed out at **${game.multiplier.toFixed(2)}x**! Won **$${payout.toLocaleString()}**!` });
             } catch (error) {
-                if (error.message === 'ALREADY_CASHED_OUT') {
-                    return interaction.reply({ content: '❌ You already cashed out!', ephemeral: true });
-                }
-                throw error;
+                // Rollback flag on error
+                bet.cashedOut = false;
+                bet.cashoutMultiplier = undefined;
+                console.error('[Crash] Cashout error:', error);
+                return interaction.reply({ content: '❌ Error processing cashout. Please try again.', ephemeral: true });
             }
         }
 

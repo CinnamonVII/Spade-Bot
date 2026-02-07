@@ -113,37 +113,47 @@ module.exports = {
         const totalCost = stock.price * shares;
 
         if (sub === 'buy') {
-            const userRes = await query('SELECT balance FROM users WHERE id = $1', [userId]);
-            const balance = parseInt(userRes.rows[0]?.balance || 0);
+            // SECURITY FIX: Atomic balance check and deduction inside transaction
+            try {
+                await withTransaction(async (client) => {
+                    // Atomic: check balance and deduct in one query
+                    const result = await client.query(
+                        'UPDATE users SET balance = balance - $1 WHERE id = $2 AND balance >= $1 RETURNING balance',
+                        [totalCost, userId]
+                    );
 
-            if (balance < totalCost) {
-                return interaction.reply({ content: `❌ Insufficient funds. You need **$${totalCost.toLocaleString()}** but have **$${balance.toLocaleString()}**.`, ephemeral: true });
+                    if (result.rowCount === 0) {
+                        throw new Error('INSUFFICIENT_FUNDS');
+                    }
+
+                    // Update holdings (upsert)
+                    await client.query(`
+                        INSERT INTO user_stocks (user_id, stock_id, shares, avg_price)
+                        VALUES ($1, $2, $3, $4)
+                        ON CONFLICT (user_id, stock_id) DO UPDATE SET
+                            avg_price = (user_stocks.avg_price * user_stocks.shares + $4 * $3) / (user_stocks.shares + $3),
+                            shares = user_stocks.shares + $3
+                    `, [userId, stock.id, shares, stock.price]);
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📈 Stock Purchased!')
+                    .setColor(CONSTANTS.COLOR_SUCCESS)
+                    .addFields(
+                        { name: 'Stock', value: `${stock.ticker} - ${stock.name}`, inline: true },
+                        { name: 'Shares', value: shares.toString(), inline: true },
+                        { name: 'Total Cost', value: `$${totalCost.toLocaleString()}`, inline: true }
+                    );
+
+                return interaction.reply({ embeds: [embed] });
+            } catch (error) {
+                if (error.message === 'INSUFFICIENT_FUNDS') {
+                    const userRes = await query('SELECT balance FROM users WHERE id = $1', [userId]);
+                    const balance = parseInt(userRes.rows[0]?.balance || 0);
+                    return interaction.reply({ content: `❌ Insufficient funds. You need **$${totalCost.toLocaleString()}** but have **$${balance.toLocaleString()}**.`, ephemeral: true });
+                }
+                throw error;
             }
-
-            await withTransaction(async (client) => {
-                // Deduct balance
-                await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [totalCost, userId]);
-
-                // Update holdings (upsert)
-                await client.query(`
-                    INSERT INTO user_stocks (user_id, stock_id, shares, avg_price)
-                    VALUES ($1, $2, $3, $4)
-                    ON CONFLICT (user_id, stock_id) DO UPDATE SET
-                        avg_price = (user_stocks.avg_price * user_stocks.shares + $4 * $3) / (user_stocks.shares + $3),
-                        shares = user_stocks.shares + $3
-                `, [userId, stock.id, shares, stock.price]);
-            });
-
-            const embed = new EmbedBuilder()
-                .setTitle('📈 Stock Purchased!')
-                .setColor(CONSTANTS.COLOR_SUCCESS)
-                .addFields(
-                    { name: 'Stock', value: `${stock.ticker} - ${stock.name}`, inline: true },
-                    { name: 'Shares', value: shares.toString(), inline: true },
-                    { name: 'Total Cost', value: `$${totalCost.toLocaleString()}`, inline: true }
-                );
-
-            return interaction.reply({ embeds: [embed] });
         }
 
         if (sub === 'sell') {

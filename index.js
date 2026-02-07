@@ -45,8 +45,12 @@ async function gracefulShutdown() {
 // Main startup function
 (async () => {
     try {
+        // SECURITY FIX: Validate environment before startup
+        validateEnvironment();
+
         await initDatabase();
-        await pool.query('UPDATE users SET last_work = NULL');
+        // REMOVED: Work cooldown reset (was allowing unlimited work by restarting bot)
+        // await pool.query('UPDATE users SET last_work = NULL');
 
         commandHandler(client);
         eventHandler(client);

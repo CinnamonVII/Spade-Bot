@@ -57,9 +57,10 @@ async function exportDatabase() {
             shell: false // SECURITY: Explicitly disable shell
         }, (error, stdout, stderr) => {
             if (error) {
-                // Fallback: Export using query
+                // Fallback: Export using query (FIX #15: use correct extension)
                 console.log('[Backup] pg_dump not available, using JSON export...');
-                exportAsJson(filepath.replace('.sql', '.json'))
+                const jsonFilepath = filepath.replace('.sql', '.json');
+                exportAsJson(jsonFilepath)
                     .then(resolve)
                     .catch(reject);
                 return;

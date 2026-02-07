@@ -297,8 +297,8 @@ Seller: ${sellerName}
                 const item = itemRes.rows[0];
 
                 // Check user owns enough
-                const inventoryRes = await query('SELECT amount FROM user_items WHERE user_id = $1 AND item_id = $2', [userId, itemId]);
-                const ownedAmount = inventoryRes.rows[0]?.amount || 0;
+                const userItemsRes = await query('SELECT amount FROM user_items WHERE user_id = $1 AND item_id = $2', [userId, itemId]);
+                const ownedAmount = userItemsRes.rows[0]?.amount || 0;
 
                 if (ownedAmount < quantity) {
                     return interaction.reply({ content: `❌ You only own **${ownedAmount}x ${item.name}**. Can't list ${quantity}.`, ephemeral: true });

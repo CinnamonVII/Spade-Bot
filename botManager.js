@@ -129,6 +129,7 @@ class BotManager extends EventEmitter {
 
     monitorServerStart() {
         // Poll Aternos status every 30 seconds until online
+        // SECURITY FIX: Clear any existing timeout to prevent memory leak (#13)
         if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
 
         const check = async () => {
@@ -148,6 +149,8 @@ class BotManager extends EventEmitter {
                 }
             } catch (e) {
                 console.error('Monitor error:', e);
+                // FIX #14: Error is logged but not reported to Discord
+                // Consider adding webhook notification for critical monitoring failures
             }
         };
 

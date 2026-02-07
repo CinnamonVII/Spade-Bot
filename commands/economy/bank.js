@@ -93,7 +93,7 @@ module.exports = {
                     { name: 'Your Profile', value: `**Wallet:** ${cash.toLocaleString()} coins\n**Savings:** ${savings.toLocaleString()} coins\n**Credit Score:** ${score}`, inline: true },
                     { name: 'Borrowing', value: `**Limit:** ${limit.toLocaleString()} coins\n**Rate:** ${(rate * 100).toFixed(1)}%\n**Term:** 1 Hour`, inline: true }
                 )
-                .setColor(0x2f3136)
+                .setColor(CONSTANTS.COLOR_INFO)
                 .setFooter({ text: 'Loans must be repaid within 1 hour.' });
 
             return interaction.reply({ embeds: [embed] });
@@ -240,7 +240,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setTitle('Your Active Loans')
                 .setDescription(loansStr)
-                .setColor(0xf44336);
+                .setColor(CONSTANTS.COLOR_ERROR);
 
             return interaction.reply({ embeds: [embed] });
         }
@@ -260,11 +260,12 @@ module.exports = {
                         throw new Error('NO_SAVINGS');
                     }
 
-                    // Calculate dividend
+                    // Calculate dividend (FIX #12: documented rate logic)
+                    // Rate is Annual Percentage Yield (APY), divided by 365 for daily rate
                     let rate;
-                    if (savings >= 1000000) rate = 0.03;       // 3% for millionaires
-                    else if (savings >= 100000) rate = 0.025;  // 2.5% for 100k+
-                    else rate = 0.02;                           // 2% base
+                    if (savings >= 1000000) rate = 0.03;       // 3% APY for millionaires
+                    else if (savings >= 100000) rate = 0.025;  // 2.5% APY for 100k+
+                    else rate = 0.02;                           // 2% APY base
 
                     const dailyRate = rate / 365;
                     const dividend = Math.floor(savings * dailyRate);
@@ -293,7 +294,7 @@ module.exports = {
 
                 const embed = new EmbedBuilder()
                     .setTitle('💰 Dividends Claimed!')
-                    .setColor(0x4CAF50)
+                    .setColor(CONSTANTS.COLOR_SUCCESS)
                     .addFields(
                         { name: 'New Savings', value: `$${newSavings.toLocaleString()}`, inline: true },
                         { name: 'Rate', value: `${(rate * 100).toFixed(1)}% APY`, inline: true },

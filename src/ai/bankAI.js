@@ -22,18 +22,25 @@ async function initBankAI() {
         ON CONFLICT (id) DO NOTHING
     `, [BANK_AI_ID]);
 
-    // Give Bank AI initial stock holdings
-    const stocks = await query('SELECT id FROM stocks');
+    // SECURITY FIX: Only initialize holdings if they don't exist (prevent infinite inflation)
+    const existingHoldings = await query('SELECT COUNT(*) as count FROM user_stocks WHERE user_id = $1', [BANK_AI_ID]);
+    const holdingsCount = parseInt(existingHoldings.rows[0]?.count || 0);
 
-    for (const stock of stocks.rows) {
-        await query(`
-            INSERT INTO user_stocks (user_id, stock_id, shares, avg_price)
-            VALUES ($1, $2, 10000, 0)
-            ON CONFLICT (user_id, stock_id) DO UPDATE SET shares = user_stocks.shares + 10000
-        `, [BANK_AI_ID, stock.id]);
+    if (holdingsCount === 0) {
+        // First-time initialization only
+        const stocks = await query('SELECT id FROM stocks');
+
+        for (const stock of stocks.rows) {
+            await query(`
+                INSERT INTO user_stocks (user_id, stock_id, shares, avg_price)
+                VALUES ($1, $2, 10000, 0)
+                ON CONFLICT (user_id, stock_id) DO NOTHING
+            `, [BANK_AI_ID, stock.id]);
+        }
+        console.log('[Bank AI] Initialized with 10,000 shares per stock');
+    } else {
+        console.log('[Bank AI] Holdings already exist, skipping initialization');
     }
-
-    console.log('[Bank AI] Initialized with unlimited stock holdings');
 }
 
 /**
@@ -79,7 +86,7 @@ async function createBankListing() {
         const quantity = Math.floor(Math.random() * 10) + 5; // 5-14 shares
 
         await withTransaction(async (client) => {
-            // Deduct from Bank AI inventory (unlimited supply, so we don't check)
+            // Deduct from Bank AI user_items (unlimited supply, so we don't check)
             await client.query(`
                 UPDATE user_stocks 
                 SET shares = shares - $1 

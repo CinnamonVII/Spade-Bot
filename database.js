@@ -115,15 +115,14 @@ async function initDatabase() {
             )
         `);
 
-        // Migration: Rename old inventory table to user_items if it exists
+        // Migration: Ensure user_items table exists (legacy: was called 'inventory')
         await query(`
             DO $$ 
             BEGIN 
                 IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='inventory') 
-                   AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='user_items') THEN
+                    AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='user_items') THEN
                     ALTER TABLE inventory RENAME TO user_items;
                 ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='inventory') THEN
-                    -- Both exist, migrate data and drop old
                     INSERT INTO user_items (user_id, item_id, amount)
                     SELECT user_id, item_id, amount FROM inventory
                     ON CONFLICT (user_id, item_id) DO UPDATE SET amount = user_items.amount + EXCLUDED.amount;
@@ -243,6 +242,27 @@ async function initDatabase() {
             BEGIN 
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_dividend') THEN
                     ALTER TABLE users ADD COLUMN last_dividend TIMESTAMP;
+                END IF;
+            END $$;
+        `);
+
+        // PERFORMANCE FIX: Add indexes for frequently queried columns (#11)
+        await query(`
+            DO $$ 
+            BEGIN 
+                -- Index for getActiveLoans query
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_loans_borrower_status') THEN
+                    CREATE INDEX idx_loans_borrower_status ON loans(borrower_id, status);
+                END IF;
+                
+                -- Index for market listings queries
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_market_seller_status') THEN
+                    CREATE INDEX idx_market_seller_status ON market_listings(seller_id, status);
+                END IF;
+                
+                -- Index for user stock portfolio queries
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_user_stocks_user') THEN
+                    CREATE INDEX idx_user_stocks_user ON user_stocks(user_id);
                 END IF;
             END $$;
         `);

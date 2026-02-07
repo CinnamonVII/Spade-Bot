@@ -271,7 +271,8 @@ module.exports = {
                     return i.reply({ content: "This isn't your game!", ephemeral: true });
                 }
 
-
+                // FIX #10: isProcessing flag provides basic protection in single-threaded JavaScript
+                // For production systems with multiple instances, consider storing game state in database
                 if (isProcessing) {
                     return i.reply({ content: "Please wait for the current action to complete.", ephemeral: true });
                 }

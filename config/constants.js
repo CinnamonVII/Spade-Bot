@@ -40,14 +40,18 @@ module.exports = {
         DEBUG: 'debug'
     },
 
-
-    DB_PATH: process.env.DB_PATH || './economy.db',
-    DB_WAL_MODE: true,
-    DB_FOREIGN_KEYS: true,
-
+    // REMOVED: SQLite-specific constants (bot uses PostgreSQL)
+    // DB_PATH, DB_WAL_MODE, DB_FOREIGN_KEYS
 
     LOG_FILE_ENABLED: false,
     LOG_MAX_SIZE: 10 * 1024 * 1024,
     LOG_MAX_FILES: 5,
     LOG_DIR_MAX_SIZE: 100 * 1024 * 1024,
+
+    // Horse race parameters (FIX #18: extracted magic numbers)
+    HORSE_RACE_TICKS: 80,
+    HORSE_STUMBLE_CHANCE: 0.05,
+    HORSE_SURGE_CHANCE: 0.1,
+    HORSE_STUMBLE_PENALTY: -0.5,
+    HORSE_SURGE_BONUS: 0.8,
 };
