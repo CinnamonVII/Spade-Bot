@@ -1,0 +1,169 @@
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { query, withTransaction, ensureUser } = require('../../database');
+const CONSTANTS = require('../../config/constants');
+
+const SCENES = {
+    start: {
+        title: "The Crossroads",
+        description: "You stand at the edge of the **Spade Kingdom**. To your left is the lively **Town Square**, and ahead looms the **Dark Forest**.",
+        image: "https://i.imgur.com/example_crossroads.png", // Placeholder
+        choices: [
+            { id: "town", label: "Go to Town", style: ButtonStyle.Primary },
+            { id: "forest", label: "Enter Forest", style: ButtonStyle.Danger }
+        ]
+    },
+    town: {
+        title: "Town Square",
+        description: "Merchants shout their wares. The **Inn** looks inviting.",
+        choices: [
+            { id: "inn", label: "Enter Inn (Heal)", style: ButtonStyle.Success },
+            { id: "start", label: "Leave Town", style: ButtonStyle.Secondary }
+        ]
+    },
+    inn: {
+        title: "The Rusty Spoon Inn",
+        description: "You rest by the fire. Your HP is restored.",
+        action: (state) => { state.hp = state.max_hp; return "You feel refreshed!"; },
+        choices: [
+            { id: "town", label: "Leave Inn", style: ButtonStyle.Secondary }
+        ]
+    },
+    forest: {
+        title: "Dark Forest",
+        description: "The trees block out the sun. You hear a growl...",
+        choices: [
+            { id: "combat_wolf", label: "Investigate Growl", style: ButtonStyle.Danger },
+            { id: "start", label: "Flee", style: ButtonStyle.Secondary }
+        ]
+    },
+    combat_wolf: {
+        title: "Combat: Dire Wolf",
+        description: "A Dire Wolf lunges at you!",
+        action: (state) => {
+            const playerDmg = Math.floor(Math.random() * 10) + 5;
+            const enemyDmg = Math.floor(Math.random() * 8) + 2;
+            state.hp -= enemyDmg;
+
+            if (state.hp <= 0) {
+                state.hp = 10; // Revive at town
+                state.scene = 'town';
+                return `You were defeated! You crawl back to town... (-${enemyDmg} HP)`;
+            }
+
+            // Win logic simplified
+            state.xp += 20;
+            state.gold += 15;
+            return `You defeated the Wolf! Took ${enemyDmg} dmg, dealt ${playerDmg}. (+20 XP, +15 Gold)`;
+        },
+        choices: [
+            { id: "forest", label: "Continue Exploring", style: ButtonStyle.Primary },
+            { id: "start", label: "Return to Safety", style: ButtonStyle.Secondary }
+        ]
+    }
+};
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('adventure')
+        .setDescription('Play the text-based RPG adventure!'),
+    async execute(interaction) {
+        const userId = interaction.user.id;
+        await ensureUser(userId);
+
+        // Fetch current state
+        let res = await query('SELECT adventure_data FROM users WHERE id = $1', [userId]);
+        let state = res.rows[0]?.adventure_data || {};
+
+        // Initialize if empty
+        if (!state.scene) {
+            state = {
+                scene: 'start',
+                hp: 100,
+                max_hp: 100,
+                xp: 0,
+                gold: 0,
+                inventory: []
+            };
+            await query('UPDATE users SET adventure_data = $1 WHERE id = $2', [JSON.stringify(state), userId]);
+        }
+
+        const renderScene = async (state, message = null) => {
+            const sceneKey = state.scene || 'start';
+            const scene = SCENES[sceneKey];
+            if (!scene) {
+                state.scene = 'start';
+                return renderScene(state, "Error: Scene not found. Resetting.");
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle(`🏰 ${scene.title}`)
+                .setDescription(`${message ? `**${message}**\n\n` : ''}${scene.description}`)
+                .setColor(CONSTANTS.COLOR_INFO)
+                .addFields(
+                    { name: '❤️ HP', value: `${state.hp}/${state.max_hp}`, inline: true },
+                    { name: '✨ XP', value: `${state.xp}`, inline: true },
+                    { name: '💰 Gold', value: `${state.gold}`, inline: true }
+                );
+
+            const row = new ActionRowBuilder();
+            if (scene.choices) {
+                for (const choice of scene.choices) {
+                    row.addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(choice.id)
+                            .setLabel(choice.label)
+                            .setStyle(choice.style || ButtonStyle.Primary)
+                    );
+                }
+            }
+
+            return { embeds: [embed], components: row.components.length > 0 ? [row] : [] };
+        };
+
+        const payload = await renderScene(state);
+        const response = await interaction.reply({ ...payload, fetchReply: true });
+
+        const collector = response.createMessageComponentCollector({ time: 60000 });
+
+        collector.on('collect', async i => {
+            if (i.user.id !== userId) return i.reply({ content: "Not your adventure!", ephemeral: true });
+
+            const choiceId = i.customId;
+            let message = "";
+
+            // Handle transition
+            // Simplified: choiceId IS the next scene key
+            // In reality, we might look up choice in current scene.choices
+            // But let's assume choice IDs are unique descriptors or next scenes.
+
+            // Check if choice exists in current scene to be safe (and get specific logic if needed)
+            const currentScene = SCENES[state.scene];
+            const selectedChoice = currentScene.choices.find(c => c.id === choiceId);
+
+            if (selectedChoice) {
+                // Execute transition
+                state.scene = choiceId;
+
+                // If next scene has an 'action', execute it immediately upon entry? 
+                // Or was the action on the choice?
+                // Let's check if the *target* scene has an auto-action (like combat or healing)
+                const nextScene = SCENES[choiceId];
+                if (nextScene && nextScene.action) {
+                    const resultMsg = nextScene.action(state);
+                    message = resultMsg;
+                }
+            }
+
+            // Save state
+            await query('UPDATE users SET adventure_data = $1 WHERE id = $2', [JSON.stringify(state), userId]);
+
+            // Render new scene
+            const newPayload = await renderScene(state, message);
+            await i.update(newPayload);
+        });
+
+        collector.on('end', () => {
+            // Disable buttons?
+        });
+    }
+};

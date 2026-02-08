@@ -211,6 +211,12 @@ async function initDatabase() {
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_dividend') THEN
                     ALTER TABLE users ADD COLUMN last_dividend TIMESTAMP;
                 END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='steam_id') THEN
+                    ALTER TABLE users ADD COLUMN steam_id VARCHAR(50);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='adventure_data') THEN
+                    ALTER TABLE users ADD COLUMN adventure_data JSONB DEFAULT '{}';
+                END IF;
             END $$;
         `);
         await query(`
@@ -270,6 +276,44 @@ async function initDatabase() {
                 value BIGINT NOT NULL,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS stock_news (
+                id SERIAL PRIMARY KEY,
+                stock_id INT,
+                headline TEXT NOT NULL,
+                impact_score REAL NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(stock_id) REFERENCES stocks(id)
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS user_cards (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
+                suit VARCHAR(10) NOT NULL,
+                rank VARCHAR(5) NOT NULL,
+                quality VARCHAR(20) DEFAULT 'Standard',
+                obtained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                -- RPG Stats
+                level INT DEFAULT 1,
+                xp INT DEFAULT 0,
+                nickname VARCHAR(50),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+                -- Removed UNIQUE constraint to allow multiples with different stats/levels
+            )
+        `);
+
+        await query(`
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='active_card_id') THEN
+                    ALTER TABLE users ADD COLUMN active_card_id INT;
+                    ALTER TABLE users ADD CONSTRAINT fk_user_active_card FOREIGN KEY (active_card_id) REFERENCES user_cards(id) ON DELETE SET NULL;
+                END IF;
+            END $$;
         `);
 
         // MIGRATION: Reset Economy for Limited Supply (100 shares)

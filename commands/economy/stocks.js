@@ -30,6 +30,9 @@ module.exports = {
         )
         .addSubcommand(sub =>
             sub.setName('portfolio').setDescription('View your stock portfolio')
+        )
+        .addSubcommand(sub =>
+            sub.setName('news').setDescription('View latest market news')
         ),
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
@@ -139,12 +142,45 @@ module.exports = {
             return interaction.reply({ embeds: [embed] });
         }
 
-        const ticker = interaction.options.getString('ticker').toUpperCase();
+        if (sub === 'news') {
+            const newsRes = await query(`
+                SELECT n.headline, n.impact_score, n.timestamp, s.ticker 
+                FROM stock_news n 
+                JOIN stocks s ON n.stock_id = s.id 
+                ORDER BY n.timestamp DESC 
+                LIMIT 5
+            `);
+
+            if (newsRes.rows.length === 0) {
+                return interaction.reply({ content: '📰 No recent market news.', ephemeral: true });
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('📰 Market News')
+                .setColor(CONSTANTS.COLOR_INFO)
+                .setTimestamp();
+
+            for (const news of newsRes.rows) {
+                const impactSign = news.impact_score > 0 ? '📈' : '📉';
+                const time = new Date(news.timestamp).toLocaleTimeString();
+                embed.addFields({
+                    name: `${impactSign} ${news.ticker} - ${time}`,
+                    value: news.headline
+                });
+            }
+
+            return interaction.reply({ embeds: [embed] });
+        }
+
+        const ticker = interaction.options.getString('ticker');
+        if (!ticker) return interaction.reply({ content: '❌ Ticker required.', ephemeral: true });
+
+        const tickerUpper = ticker.toUpperCase();
         const shares = interaction.options.getInteger('shares');
-        const stockRes = await query('SELECT * FROM stocks WHERE ticker = $1', [ticker]);
+        const stockRes = await query('SELECT * FROM stocks WHERE ticker = $1', [tickerUpper]);
 
         if (stockRes.rows.length === 0) {
-            return interaction.reply({ content: `❌ Stock \`${ticker}\` not found.`, ephemeral: true });
+            return interaction.reply({ content: `❌ Stock \`${tickerUpper}\` not found.`, ephemeral: true });
         }
 
         const stock = stockRes.rows[0];
@@ -210,7 +246,7 @@ module.exports = {
             const holding = holdingRes.rows[0];
 
             if (!holding || holding.shares < shares) {
-                return interaction.reply({ content: `❌ You check your portfolio... you don't have ${shares} shares of ${ticker}.`, ephemeral: true });
+                return interaction.reply({ content: `❌ You check your portfolio... you don't have ${shares} shares of ${tickerUpper}.`, ephemeral: true });
             }
 
             try {

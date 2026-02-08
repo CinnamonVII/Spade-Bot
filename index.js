@@ -58,6 +58,8 @@ async function gracefulShutdown() {
         startScheduledBackups(client);
         startBankAI();
         startMarketSimulation();
+        const { startServer } = require('./src/web/server');
+        startServer();
 
         const discordToken = process.env.DISCORD_TOKEN;
         await client.login(discordToken);
