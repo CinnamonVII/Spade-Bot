@@ -26,7 +26,7 @@ const BASE_STATS = {
 };
 
 // Growth per Level (multiplier on base)
-const GROWTH_RATE = 1.1;
+
 
 const SUIT_BONUS = {
     'Spades': { stat: 'atk', bonus: 1.2, desc: 'Sharp (+ATK)', strongVs: 'Hearts' },
@@ -284,108 +284,118 @@ module.exports = {
 
             const collector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
 
+            let processing = false;
             collector.on('collect', async i => {
                 if (i.user.id !== userId) return i.reply({ content: "Not your battle!", ephemeral: true });
 
-                const action = i.customId;
+                if (processing) return i.deferUpdate();
+                processing = true;
+                try {
 
-                // Player Turn
-                if (action === 'flee') {
-                    battleLog.push(`🏃 You ran away safely.`);
-                    await i.update({ embeds: [updateEmbed(true)], components: [] });
-                    collector.stop();
-                    return;
-                }
+                    const action = i.customId;
 
-                if (action === 'catch') {
-                    // Catch Formula: (MaxHP * 3 - CurrentHP * 2) * Rate / (MaxHP * 3)
-                    // Simplified: (1 - (Current / Max)) * BaseRate
-                    const hpPercent = enemy.current_hp / enemyStats.max_hp;
-                    let baseRate = 0.5; // Base 50%
-                    // Rarity penalty
-                    if (['J', 'Q', 'K'].includes(enemy.rank)) baseRate = 0.2;
-                    if (enemy.rank === 'A') baseRate = 0.1;
+                    // Player Turn
+                    if (action === 'flee') {
+                        battleLog.push(`🏃 You ran away safely.`);
+                        await i.update({ embeds: [updateEmbed(true)], components: [] });
+                        collector.stop();
+                        return;
+                    }
 
-                    // Probability increases as HP decreases
-                    // If HP is 100%, chance is baseRate * 0.1 (Very low)
-                    // If HP is 1%, chance is baseRate * 2.0 (High)
-                    const chance = baseRate * (2.0 - hpPercent * 1.5);
-                    const roll = Math.random();
+                    if (action === 'catch') {
+                        // Catch Formula: (MaxHP * 3 - CurrentHP * 2) * Rate / (MaxHP * 3)
+                        // Simplified: (1 - (Current / Max)) * BaseRate
+                        const hpPercent = enemy.current_hp / enemyStats.max_hp;
+                        let baseRate = 0.5; // Base 50%
+                        // Rarity penalty
+                        if (['J', 'Q', 'K'].includes(enemy.rank)) baseRate = 0.2;
+                        if (enemy.rank === 'A') baseRate = 0.1;
 
-                    if (roll < chance) {
-                        try {
-                            await query(`
+                        // Probability increases as HP decreases
+                        // If HP is 100%, chance is baseRate * 0.1 (Very low)
+                        // If HP is 1%, chance is baseRate * 2.0 (High)
+                        const chance = baseRate * (2.0 - hpPercent * 1.5);
+                        const roll = Math.random();
+
+                        if (roll < chance) {
+                            try {
+                                await query(`
                                 INSERT INTO user_cards (user_id, suit, rank, quality, level, xp)
                                 VALUES ($1, $2, $3, $4, $5, 0)
                             `, [userId, enemy.suit, enemy.rank, enemy.quality, enemy.level]);
-                            battleLog.push(`🎉 **Gotcha!** ${eEmoji} was caught!`);
-                            await i.update({ embeds: [updateEmbed(true)], components: [] });
-                            collector.stop();
-                            return;
-                        } catch (e) { console.error(e); }
-                    } else {
-                        battleLog.push(`❌ Catch failed! The wild card is angry!`);
-                        // Enemy turn continues
+                                battleLog.push(`🎉 **Gotcha!** ${eEmoji} was caught!`);
+                                await i.update({ embeds: [updateEmbed(true)], components: [] });
+                                collector.stop();
+                                return;
+                            } catch (e) { console.error(e); }
+                        } else {
+                            battleLog.push(`❌ Catch failed! The wild card is angry!`);
+                            // Enemy turn continues
+                        }
                     }
-                }
 
-                if (action === 'attack') {
-                    // Damage Recalc
-                    // Advantage?
-                    let multiplier = 1.0;
-                    const bonus = SUIT_BONUS[activeCard.suit];
-                    if (bonus.strongVs === enemy.suit) multiplier = 1.5;
+                    if (action === 'attack') {
+                        // Damage Recalc
+                        // Advantage?
+                        let multiplier = 1.0;
+                        const bonus = SUIT_BONUS[activeCard.suit];
+                        if (bonus.strongVs === enemy.suit) multiplier = 1.5;
 
-                    const dmg = Math.max(1, Math.floor((playerStats.atk * multiplier) - (enemyStats.def * 0.5)));
-                    enemy.current_hp -= dmg;
-                    const crit = Math.random() < 0.1 ? ' (CRIT!)' : ''; // simple crit
-                    const effText = multiplier > 1 ? ' **(Effective!)**' : '';
-                    battleLog.push(`🗡️ You deal **${dmg}** damage!${effText}`);
-                }
-
-                // Check Enemy Death
-                if (enemy.current_hp <= 0) {
-                    enemy.current_hp = 0;
-                    // XP Gain
-                    // Base 10 * EnemyLevel
-                    const xpGain = 10 * enemy.level;
-                    battleLog.push(`🏆 **You Won!** Gained ${xpGain} XP.`);
-
-                    // Apply XP
-                    let newXp = (activeCard.xp || 0) + xpGain;
-                    let newLevel = activeCard.level;
-                    let leveledUp = false;
-                    while (newXp >= XP_TABLE(newLevel)) {
-                        newXp -= XP_TABLE(newLevel);
-                        newLevel++;
-                        leveledUp = true;
+                        const dmg = Math.max(1, Math.floor((playerStats.atk * multiplier) - (enemyStats.def * 0.5)));
+                        enemy.current_hp -= dmg;
+                        const crit = Math.random() < 0.1 ? ' (CRIT!)' : ''; // simple crit
+                        const effText = multiplier > 1 ? ' **(Effective!)**' : '';
+                        battleLog.push(`🗡️ You deal **${dmg}** damage!${effText}`);
                     }
-                    if (leveledUp) battleLog.push(`🔼 **Level Up!** Your card is now Lv.${newLevel}!`);
 
-                    await query('UPDATE user_cards SET xp = $1, level = $2 WHERE id = $3', [newXp, newLevel, activeCard.id]);
+                    // Check Enemy Death
+                    if (enemy.current_hp <= 0) {
+                        enemy.current_hp = 0;
+                        // XP Gain
+                        // Base 10 * EnemyLevel
+                        const xpGain = 10 * enemy.level;
+                        battleLog.push(`🏆 **You Won!** Gained ${xpGain} XP.`);
 
-                    await i.update({ embeds: [updateEmbed(true)], components: [] });
-                    collector.stop();
-                    return;
+                        // Apply XP
+                        let newXp = (activeCard.xp || 0) + xpGain;
+                        let newLevel = activeCard.level;
+                        let leveledUp = false;
+                        while (newXp >= XP_TABLE(newLevel)) {
+                            newXp -= XP_TABLE(newLevel);
+                            newLevel++;
+                            leveledUp = true;
+                        }
+                        if (leveledUp) battleLog.push(`🔼 **Level Up!** Your card is now Lv.${newLevel}!`);
+
+                        await query('UPDATE user_cards SET xp = $1, level = $2 WHERE id = $3', [newXp, newLevel, activeCard.id]);
+
+                        await i.update({ embeds: [updateEmbed(true)], components: [] });
+                        collector.stop();
+                        return;
+                    }
+
+                    // Enemy Turn (if not caught/dead)
+                    // Speed check? For simplicity, Player always first, Enemy responds.
+                    let eMult = 1.0;
+                    if (SUIT_BONUS[enemy.suit].strongVs === activeCard.suit) eMult = 1.5;
+                    const eDmg = Math.max(1, Math.floor((enemyStats.atk * eMult) - (playerStats.def * 0.5)));
+                    playerHp -= eDmg;
+                    battleLog.push(`💥 Enemy hits back for **${eDmg}**!`);
+
+                    if (playerHp <= 0) {
+                        playerHp = 0;
+                        battleLog.push(`💀 **Defeated!** You blacked out.`);
+                        await i.update({ embeds: [updateEmbed(true)], components: [] });
+                        collector.stop();
+                        return;
+                    }
+
+                    await i.update({ embeds: [updateEmbed()], components: [getComponents()] });
+                } catch (e) {
+                    console.error("Battle interaction error:", e);
+                } finally {
+                    processing = false;
                 }
-
-                // Enemy Turn (if not caught/dead)
-                // Speed check? For simplicity, Player always first, Enemy responds.
-                let eMult = 1.0;
-                if (SUIT_BONUS[enemy.suit].strongVs === activeCard.suit) eMult = 1.5;
-                const eDmg = Math.max(1, Math.floor((enemyStats.atk * eMult) - (playerStats.def * 0.5)));
-                playerHp -= eDmg;
-                battleLog.push(`💥 Enemy hits back for **${eDmg}**!`);
-
-                if (playerHp <= 0) {
-                    playerHp = 0;
-                    battleLog.push(`💀 **Defeated!** You blacked out.`);
-                    await i.update({ embeds: [updateEmbed(true)], components: [] });
-                    collector.stop();
-                    return;
-                }
-
-                await i.update({ embeds: [updateEmbed()], components: [getComponents()] });
             });
 
             collector.on('end', (_, reason) => {

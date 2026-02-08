@@ -1,0 +1,33 @@
+[phases.setup]
+nixPkgs = [
+    "nodejs",
+    "npm",
+    "chromium",
+    "libasound2",
+    "libatk1.0-0",
+    "libatk-bridge2.0-0",
+    "libcups2",
+    "libdrm2",
+    "libgbm1",
+    "libnspr4",
+    "libnss3",
+    "libx11-6",
+    "libxcomposite1",
+    "libxdamage1",
+    "libxext6",
+    "libxfixes3",
+    "libxrandr2",
+    "libpango-1.0-0",
+    "libcairo2",
+    "libxss1"
+]
+
+[phases.build]
+cmds = ["npm ci"]
+
+[phases.start]
+cmd = "npm start"
+
+[variables]
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium"
